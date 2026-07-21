@@ -1,0 +1,30 @@
+# Local secrets / runtime data (never commit)
+.local/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.json
+.aerina-data/
+apps/client/src-tauri/.aerina-data/
+**/live-test*.json
+**/live-test*.env
+
+# Build
+/target
+**/*.rs.bk
+.DS_Store
+Thumbs.db
+node_modules
+dist
+.vite
+.playwright-cli/
+*.db
+*.db-*
+apps/client/src-tauri/gen
+# Local UI audit / one-off helper artifacts (never commit)
+/output/
+/scripts/
+/apps/client/scripts/
+*.log

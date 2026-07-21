@@ -1,0 +1,13 @@
+{
+  "name": "aerina",
+  "private": true,
+  "workspaces": [
+    "apps/client"
+  ],
+  "scripts": {
+    "dev": "npm run tauri -w client -- dev",
+    "build": "npm run tauri -w client -- build",
+    "client:dev": "npm run dev -w client",
+    "client:build": "npm run build -w client"
+  }
+}

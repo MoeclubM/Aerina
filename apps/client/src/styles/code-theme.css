@@ -1,0 +1,93 @@
+/* Theme-aware code highlighting for markdown code blocks.
+   Always keep readable contrast: dark-ish panel + light tokens on dark,
+   light panel + dark tokens on light. */
+
+.md-code {
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 88%, rgb(var(--v-theme-on-surface)) 12%);
+  border-color: rgba(var(--v-theme-on-surface), 0.12);
+}
+
+.md-code-head {
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  border-bottom-color: rgba(var(--v-theme-on-surface), 0.1);
+}
+
+.md-code pre.hljs,
+.md-body pre.hljs {
+  background: transparent !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+  padding: 12px 14px;
+}
+
+/* Light theme: github-like dark-on-light tokens */
+.v-theme--light .md-code {
+  background: #f6f8fa;
+  border-color: #d0d7de;
+}
+.v-theme--light .md-code-head {
+  background: #eef1f4;
+  border-bottom-color: #d8dee4;
+  color: #57606a;
+}
+.v-theme--light .md-code .hljs,
+.v-theme--light .md-body pre.hljs {
+  color: #24292f !important;
+}
+.v-theme--light .md-code .hljs-comment,
+.v-theme--light .md-code .hljs-quote { color: #6a737d; }
+.v-theme--light .md-code .hljs-keyword,
+.v-theme--light .md-code .hljs-selector-tag,
+.v-theme--light .md-code .hljs-type { color: #d73a49; }
+.v-theme--light .md-code .hljs-string,
+.v-theme--light .md-code .hljs-attr,
+.v-theme--light .md-code .hljs-symbol,
+.v-theme--light .md-code .hljs-bullet,
+.v-theme--light .md-code .hljs-addition { color: #032f62; }
+.v-theme--light .md-code .hljs-title,
+.v-theme--light .md-code .hljs-section,
+.v-theme--light .md-code .hljs-attribute { color: #6f42c1; }
+.v-theme--light .md-code .hljs-variable,
+.v-theme--light .md-code .hljs-template-variable,
+.v-theme--light .md-code .hljs-number,
+.v-theme--light .md-code .hljs-literal,
+.v-theme--light .md-code .hljs-built_in { color: #005cc5; }
+.v-theme--light .md-code .hljs-meta,
+.v-theme--light .md-code .hljs-link { color: #735c0f; }
+.v-theme--light .md-code .hljs-deletion { color: #b31d28; }
+.v-theme--light .md-code .hljs-name,
+.v-theme--light .md-code .hljs-selector-id,
+.v-theme--light .md-code .hljs-selector-class { color: #22863a; }
+
+/* Dark theme: github-dark-like light-on-dark tokens */
+.v-theme--dark .md-code {
+  background: color-mix(in srgb, #0d1117 82%, rgb(var(--v-theme-surface)) 18%);
+}
+.v-theme--dark .md-code .hljs,
+.v-theme--dark .md-body pre.hljs {
+  color: #e6edf3 !important;
+}
+.v-theme--dark .md-code .hljs-comment,
+.v-theme--dark .md-code .hljs-quote { color: #8b949e; }
+.v-theme--dark .md-code .hljs-keyword,
+.v-theme--dark .md-code .hljs-selector-tag,
+.v-theme--dark .md-code .hljs-type { color: #ff7b72; }
+.v-theme--dark .md-code .hljs-string,
+.v-theme--dark .md-code .hljs-attr,
+.v-theme--dark .md-code .hljs-symbol,
+.v-theme--dark .md-code .hljs-bullet,
+.v-theme--dark .md-code .hljs-addition { color: #a5d6ff; }
+.v-theme--dark .md-code .hljs-title,
+.v-theme--dark .md-code .hljs-section,
+.v-theme--dark .md-code .hljs-attribute { color: #d2a8ff; }
+.v-theme--dark .md-code .hljs-variable,
+.v-theme--dark .md-code .hljs-template-variable,
+.v-theme--dark .md-code .hljs-number,
+.v-theme--dark .md-code .hljs-literal,
+.v-theme--dark .md-code .hljs-built_in { color: #79c0ff; }
+.v-theme--dark .md-code .hljs-meta,
+.v-theme--dark .md-code .hljs-link { color: #d29922; }
+.v-theme--dark .md-code .hljs-deletion { color: #ffa198; }
+.v-theme--dark .md-code .hljs-name,
+.v-theme--dark .md-code .hljs-selector-id,
+.v-theme--dark .md-code .hljs-selector-class { color: #7ee787; }

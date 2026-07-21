@@ -1,0 +1,30 @@
+[package]
+name = "aerina-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+aerina-analytics = { workspace = true }
+aerina-arena = { workspace = true }
+aerina-conversation = { workspace = true }
+aerina-domain = { workspace = true }
+aerina-generation = { workspace = true }
+aerina-media = { workspace = true }
+aerina-mcp = { workspace = true }
+aerina-providers = { workspace = true }
+aerina-ranking = { workspace = true }
+aerina-secrets = { workspace = true }
+aerina-storage = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+uuid = { workspace = true }
+base64 = "0.22"
+reqwest = { workspace = true }

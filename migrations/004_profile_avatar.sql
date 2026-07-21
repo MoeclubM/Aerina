@@ -1,0 +1,5 @@
+-- Profile local avatar + future auth binding hooks.
+-- Applied at runtime via ensure_column() (idempotent PRAGMA + ADD COLUMN).
+-- Columns: avatar_path, auth_subject, auth_provider (all TEXT, nullable).
+-- avatar_path: relative path under media root (profile-avatars/{id}.ext)
+-- auth_subject / auth_provider: reserved for future login binding (unused until auth lands)
