@@ -1,6 +1,6 @@
 use super::*;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupInfo {
@@ -104,7 +104,7 @@ impl AppState {
         ))
     }
 
-    pub(crate) fn apply_pending_db_restore(data_dir: &PathBuf) -> Result<()> {
+    pub(crate) fn apply_pending_db_restore(data_dir: &Path) -> Result<()> {
         let incoming = data_dir.join("aerina.db.incoming");
         if !incoming.exists() {
             return Ok(());
