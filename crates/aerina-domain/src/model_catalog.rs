@@ -19,6 +19,7 @@ pub struct ModelCompatProfile {
 /// - MiniMax: M2.5+
 /// - Qwen: 3.5+
 /// - Kimi / Moonshot: K2.5+
+///
 /// Other families are kept and filled by name heuristics.
 pub fn infer_model_compat(model_id: &str) -> ModelCompatProfile {
     let raw = model_id.trim();
@@ -684,7 +685,7 @@ fn extract_qwen_version(id: &str) -> Option<(u32, u32)> {
     for marker in ["qwen", "qwq", "qvq"] {
         if let Some(pos) = id.find(marker) {
             let rest = &id[pos + marker.len()..];
-            let rest = rest.trim_start_matches(|c: char| c == '-' || c == '_' || c == ' ');
+            let rest = rest.trim_start_matches(['-', '_', ' ']);
             if let Some(v) = parse_major_minor_dotted(rest) {
                 return Some(v);
             }
