@@ -1,4 +1,6 @@
-name: Release
+name: Release Builds
+
+run-name: Release Builds · ${{ github.ref_name }} · @${{ github.actor }} · #${{ github.run_number }}
 
 on:
   push:
@@ -16,20 +18,73 @@ concurrency:
 env:
   NODE_VERSION: "24"
   CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
-  publish:
-    name: Publish ${{ matrix.platform }}
+  get-version:
+    name: Extract Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      tag: ${{ steps.get-version.outputs.tag }}
+      changelog: ${{ steps.get-changelog.outputs.changelog }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: get-version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          if [[ "$VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+            echo "tag=${VERSION}" >> $GITHUB_OUTPUT
+          else
+            echo "::error::Invalid tag format: ${{ github.ref_name }}. Expected v<major>.<minor>.<patch>"
+            exit 1
+          fi
+
+      - name: Generate changelog
+        id: get-changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            echo "## Changes since $PREV_TAG" > changelog.md
+            git log --pretty=format:"- %s (%h)" "$PREV_TAG..HEAD" >> changelog.md
+          else
+            echo "## Changes" > changelog.md
+            git log --pretty=format:"- %s (%h)" >> changelog.md
+          fi
+          echo "" >> changelog.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${{ github.ref_name }}" >> changelog.md
+          {
+            echo "changelog<<EOF"
+            cat changelog.md
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+  build:
+    name: Build ${{ matrix.platform_label }}
+    needs: get-version
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: windows-latest
+            platform_label: Windows
             args: ""
+            artifact_ext: ".exe"
           - platform: macos-latest
+            platform_label: macOS
             args: "--target universal-apple-darwin"
+            artifact_ext: ".app.tar.gz"
           - platform: ubuntu-22.04
+            platform_label: Linux
             args: ""
+            artifact_ext: ".AppImage"
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 90
     steps:
@@ -74,19 +129,92 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build and attach desktop bundles
+      - name: Build Tauri bundles
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: apps/client
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('dev-{0}', github.run_number) }}
-          releaseName: Aerina ${{ github.ref_type == 'tag' && github.ref_name || format('dev-{0}', github.run_number) }}
-          releaseBody: |
-            Automated multi-platform build for Aerina.
-
-            - Windows / macOS / Linux installers are attached below.
-          releaseDraft: ${{ github.ref_type != 'tag' }}
+          tagName: v${{ needs.get-version.outputs.tag }}
+          releaseName: ""
+          releaseBody: ""
+          releaseDraft: true
           prerelease: false
           includeUpdaterJson: false
           args: ${{ matrix.args }}
+
+      - name: Collect bundle artifacts
+        shell: bash
+        run: |
+          mkdir -p dist
+          VERSION="${{ needs.get-version.outputs.version }}"
+          RUN_ID="${GITHUB_RUN_ID}"
+          PLATFORM="${{ matrix.platform_label }}"
+          # Find all installer/bundle files produced by tauri-action
+          find apps/client/src-tauri/target -type f \( \
+            -name "*.msi" -o -name "*.exe" -o -name "*.nsis.zip" \
+            -o -name "*.dmg" -o -name "*.app.tar.gz" -o -name "*.app.tar.gz.sig" \
+            -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \
+          \) 2>/dev/null | while read -r f; do
+            base="$(basename "$f")"
+            cp "$f" "dist/Aerina-${PLATFORM}-${VERSION}-${RUN_ID}-${base}"
+          done
+          ls -la dist/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: aerina-release-${{ matrix.platform_label }}-${{ github.run_id }}
+          path: dist/
+          if-no-files-found: warn
+          retention-days: 30
+
+  release:
+    name: Create GitHub Release
+    needs: [get-version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          find artifacts -type f \( \
+            -name "*.msi" -o -name "*.exe" -o -name "*.nsis.zip" \
+            -o -name "*.dmg" -o -name "*.app.tar.gz" -o -name "*.app.tar.gz.sig" \
+            -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \
+          \) -exec cp {} release/ \;
+          ls -la release/
+
+      - name: Create or update release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: v${{ needs.get-version.outputs.tag }}
+          VERSION: ${{ needs.get-version.outputs.version }}
+          CHANGELOG: ${{ needs.get-version.outputs.changelog }}
+        run: |
+          printf '%s\n\n' "$CHANGELOG" > release-body.md
+          {
+            echo "## Downloads"
+            echo ""
+            echo "### Windows"
+            echo "- MSI installer and NSIS installer are attached below."
+            echo ""
+            echo "### macOS"
+            echo "- DMG and .app.tar.gz are attached below."
+            echo ""
+            echo "### Linux"
+            echo "- AppImage, deb, and rpm packages are attached below."
+          } >> release-body.md
+
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release edit "$TAG" --repo "${{ github.repository }}" \
+              --title "Aerina v${VERSION}" --notes-file release-body.md
+            gh release upload "$TAG" release/* --repo "${{ github.repository }}" --clobber
+          else
+            gh release create "$TAG" release/* --repo "${{ github.repository }}" \
+              --title "Aerina v${VERSION}" --notes-file release-body.md --draft
+          fi

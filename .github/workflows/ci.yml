@@ -1,5 +1,7 @@
 name: CI
 
+run-name: CI · ${{ github.head_ref || github.ref_name }} · @${{ github.actor }} · #${{ github.run_number }}
+
 on:
   push:
     branches:
@@ -9,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -18,15 +20,18 @@ concurrency:
 env:
   NODE_VERSION: "24"
   CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
-  frontend:
-    name: Frontend
+  check:
+    name: Format · Lint · Test
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -41,31 +46,6 @@ jobs:
       - name: Typecheck and build client
         run: npm run client:build
 
-  rust:
-    name: Rust
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Install Linux WebKit deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            curl \
-            wget \
-            file \
-            libxdo-dev \
-            libssl-dev \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            pkg-config
-
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -75,6 +55,17 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "."
+
+      - name: Auto format and push
+        if: github.event_name == 'push'
+        run: |
+          cargo fmt --all
+          if [ -n "$(git status --porcelain)" ]; then
+            git config --global user.name 'github-actions[bot]'
+            git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+            git commit -am "style: auto format code by CI"
+            git push origin HEAD:${{ github.ref }}
+          fi
 
       - name: Format check
         run: cargo fmt --all -- --check
