@@ -35,7 +35,7 @@ jobs:
         shell: bash
         run: |
           BASE_VERSION=$(grep '"version"' apps/client/src-tauri/tauri.conf.json | head -1 | sed 's/.*"version": *"\(.*\)".*/\1/')
-          BETA_VERSION="${BASE_VERSION}-${GITHUB_RUN_ID}"
+          BETA_VERSION="${BASE_VERSION}-${GITHUB_RUN_NUMBER}"
           echo "version=${BETA_VERSION}" >> $GITHUB_OUTPUT
           echo "Beta version: ${BETA_VERSION}"
 
@@ -221,3 +221,4 @@ jobs:
           path: dist/
           if-no-files-found: error
           retention-days: 14
+
