@@ -114,6 +114,7 @@ jobs:
       - name: Prepare artifact
         run: |
           mkdir -p dist
+          strip target/debug/aerina-client
           cp target/debug/aerina-client "dist/Aerina-Linux-x64-beta-${GITHUB_RUN_ID}"
 
       - name: Upload beta binary
@@ -159,6 +160,7 @@ jobs:
       - name: Prepare artifact
         run: |
           mkdir -p dist
+          strip target/universal-apple-darwin/debug/aerina-client
           cp target/universal-apple-darwin/debug/aerina-client "dist/Aerina-macOS-universal-beta-${GITHUB_RUN_ID}"
 
       - name: Upload beta binary
