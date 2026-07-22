@@ -21,9 +21,28 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
+  get-version:
+    name: Compute Beta Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.compute.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Compute version
+        id: compute
+        shell: bash
+        run: |
+          BASE_VERSION=$(grep '"version"' apps/client/src-tauri/tauri.conf.json | head -1 | sed 's/.*"version": *"\(.*\)".*/\1/')
+          BETA_VERSION="${BASE_VERSION}-${GITHUB_RUN_ID}"
+          echo "version=${BETA_VERSION}" >> $GITHUB_OUTPUT
+          echo "Beta version: ${BETA_VERSION}"
+
   windows-beta:
     name: Windows Beta
     runs-on: windows-latest
+    needs: get-version
     timeout-minutes: 60
     steps:
       - name: Checkout
@@ -47,27 +66,39 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build Tauri debug executable
-        run: npm run tauri -w client -- build --debug --no-bundle --ci
+      - name: Patch version
+        shell: bash
+        run: |
+          VERSION="${{ needs.get-version.outputs.version }}"
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" apps/client/src-tauri/tauri.conf.json
+          sed -i "s/^version = \"[^\"]*\"/version = \"${VERSION}\"/" apps/client/src-tauri/Cargo.toml
 
-      - name: Prepare artifact
+      - name: Build Tauri installers
+        run: npm run tauri -w client -- build --ci
+
+      - name: Collect artifacts
         shell: bash
         run: |
           mkdir -p dist
-          cp target/debug/aerina-client.exe "dist/Aerina-Windows-x64-beta-${GITHUB_RUN_ID}.exe"
+          VERSION="${{ needs.get-version.outputs.version }}"
+          find apps/client/src-tauri/target/release/bundle -type f \( -name "*.msi" -o -name "*.exe" \) | while read -r f; do
+            base="$(basename "$f")"
+            cp "$f" "dist/Aerina-Windows-x64-${VERSION}-${base}"
+          done
+          ls -la dist/
 
-      - name: Upload beta executable
+      - name: Upload beta installers
         uses: actions/upload-artifact@v7
         with:
           name: aerina-beta-windows-${{ github.run_id }}
-          archive: false
-          path: dist/Aerina-Windows-x64-beta-${{ github.run_id }}.exe
+          path: dist/
           if-no-files-found: error
           retention-days: 14
 
   linux-beta:
     name: Linux Beta
     runs-on: ubuntu-22.04
+    needs: get-version
     timeout-minutes: 60
     steps:
       - name: Checkout
@@ -108,27 +139,37 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build Tauri debug binary
-        run: npm run tauri -w client -- build --debug --no-bundle --ci
+      - name: Patch version
+        run: |
+          VERSION="${{ needs.get-version.outputs.version }}"
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" apps/client/src-tauri/tauri.conf.json
+          sed -i "s/^version = \"[^\"]*\"/version = \"${VERSION}\"/" apps/client/src-tauri/Cargo.toml
 
-      - name: Prepare artifact
+      - name: Build Tauri installers
+        run: npm run tauri -w client -- build --ci
+
+      - name: Collect artifacts
         run: |
           mkdir -p dist
-          strip target/debug/aerina-client
-          cp target/debug/aerina-client "dist/Aerina-Linux-x64-beta-${GITHUB_RUN_ID}"
+          VERSION="${{ needs.get-version.outputs.version }}"
+          find apps/client/src-tauri/target/release/bundle -type f \( -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \) | while read -r f; do
+            base="$(basename "$f")"
+            cp "$f" "dist/Aerina-Linux-x64-${VERSION}-${base}"
+          done
+          ls -la dist/
 
-      - name: Upload beta binary
+      - name: Upload beta installers
         uses: actions/upload-artifact@v7
         with:
           name: aerina-beta-linux-${{ github.run_id }}
-          archive: false
-          path: dist/Aerina-Linux-x64-beta-${{ github.run_id }}
+          path: dist/
           if-no-files-found: error
           retention-days: 14
 
   macos-beta:
     name: macOS Beta
     runs-on: macos-latest
+    needs: get-version
     timeout-minutes: 60
     steps:
       - name: Checkout
@@ -154,20 +195,29 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build Tauri debug binary
-        run: npm run tauri -w client -- build --debug --no-bundle --ci --target universal-apple-darwin
+      - name: Patch version
+        run: |
+          VERSION="${{ needs.get-version.outputs.version }}"
+          sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" apps/client/src-tauri/tauri.conf.json
+          sed -i '' "s/^version = \"[^\"]*\"/version = \"${VERSION}\"/" apps/client/src-tauri/Cargo.toml
 
-      - name: Prepare artifact
+      - name: Build Tauri installers
+        run: npm run tauri -w client -- build --ci --target universal-apple-darwin
+
+      - name: Collect artifacts
         run: |
           mkdir -p dist
-          strip target/universal-apple-darwin/debug/aerina-client
-          cp target/universal-apple-darwin/debug/aerina-client "dist/Aerina-macOS-universal-beta-${GITHUB_RUN_ID}"
+          VERSION="${{ needs.get-version.outputs.version }}"
+          find apps/client/src-tauri/target/universal-apple-darwin/release/bundle -type f \( -name "*.dmg" -o -name "*.app.tar.gz" \) | while read -r f; do
+            base="$(basename "$f")"
+            cp "$f" "dist/Aerina-macOS-universal-${VERSION}-${base}"
+          done
+          ls -la dist/
 
-      - name: Upload beta binary
+      - name: Upload beta installers
         uses: actions/upload-artifact@v7
         with:
           name: aerina-beta-macos-${{ github.run_id }}
-          archive: false
-          path: dist/Aerina-macOS-universal-beta-${{ github.run_id }}
+          path: dist/
           if-no-files-found: error
           retention-days: 14
