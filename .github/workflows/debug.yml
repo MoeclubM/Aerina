@@ -81,7 +81,7 @@ jobs:
         run: |
           mkdir -p dist
           VERSION="${{ needs.get-version.outputs.version }}"
-          find apps/client/src-tauri/target/release/bundle -type f \( -name "*.msi" -o -name "*.exe" \) | while read -r f; do
+          find target/release/bundle -type f \( -name "*.msi" -o -name "*-setup.exe" \) | while read -r f; do
             base="$(basename "$f")"
             cp "$f" "dist/Aerina-Windows-x64-${VERSION}-${base}"
           done
@@ -152,7 +152,7 @@ jobs:
         run: |
           mkdir -p dist
           VERSION="${{ needs.get-version.outputs.version }}"
-          find apps/client/src-tauri/target/release/bundle -type f \( -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \) | while read -r f; do
+          find target/release/bundle -type f \( -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \) | while read -r f; do
             base="$(basename "$f")"
             cp "$f" "dist/Aerina-Linux-x64-${VERSION}-${base}"
           done
@@ -208,7 +208,7 @@ jobs:
         run: |
           mkdir -p dist
           VERSION="${{ needs.get-version.outputs.version }}"
-          find apps/client/src-tauri/target/universal-apple-darwin/release/bundle -type f \( -name "*.dmg" -o -name "*.app.tar.gz" \) | while read -r f; do
+          find target/universal-apple-darwin/release/bundle -type f \( -name "*.dmg" -o -name "*.app.tar.gz" \) | while read -r f; do
             base="$(basename "$f")"
             cp "$f" "dist/Aerina-macOS-universal-${VERSION}-${base}"
           done
@@ -221,4 +221,3 @@ jobs:
           path: dist/
           if-no-files-found: error
           retention-days: 14
-
