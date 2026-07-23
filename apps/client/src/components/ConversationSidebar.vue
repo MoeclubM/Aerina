@@ -14,18 +14,17 @@ const props = defineProps<{
   mobile?: boolean;
   newLabel: string;
   searchLabel: string;
-  emptyLabel: string;
   multiLabel: string;
   singleLabel: string;
   todayLabel: string;
   yesterdayLabel: string;
   earlierLabel: string;
+  navigationOnly?: boolean;
 }>();
 
 const emit = defineEmits<{
   "update:filter": [value: string];
   select: [id: string];
-  create: [];
   createWithRole: [roleId: string];
   export: [id: string];
   remove: [id: string];
@@ -33,7 +32,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const route = useRoute();
-void route.path;
 const router = useRouter();
 const roleStore = useRoleStore();
 const preferences = usePreferencesStore();
@@ -44,10 +42,32 @@ const themeItems = computed(() => [
   { title: t("common.dark"), value: "dark" as ThemeMode, icon: "mdi-weather-night" },
 ]);
 
+const primaryItems = computed(() => [
+  { to: "/", title: t("nav.chat"), icon: "mdi-message-text-outline", exact: true },
+  { to: "/ranking", title: t("nav.ranking"), icon: "mdi-trophy-outline", exact: false },
+]);
+
+function primaryActive(item: { to: string; exact: boolean }) {
+  return item.exact ? route.path === item.to : route.path === item.to || route.path.startsWith(`${item.to}/`);
+}
+
 
 
 const activeRoleId = ref<string>(roleStore.defaultRoleId);
-const sidebarWidth = ref(parseInt(localStorage.getItem("aerina.unifiedSidebarWidth") || "220"));
+const SIDEBAR_MIN_WIDTH = 232;
+const SIDEBAR_MAX_WIDTH = 360;
+
+function normalizeSidebarWidth(value: unknown) {
+  const width = Number(value);
+  return Number.isFinite(width) ? Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width)) : SIDEBAR_MIN_WIDTH;
+}
+
+const sidebarWidth = ref(normalizeSidebarWidth(localStorage.getItem("aerina.unifiedSidebarWidth")));
+localStorage.setItem("aerina.unifiedSidebarWidth", String(sidebarWidth.value));
+
+function syncSidebarWidth(event: Event) {
+  sidebarWidth.value = normalizeSidebarWidth((event as CustomEvent<number>).detail);
+}
 
 // Profile Session State
 const session = ref<SessionInfo | null>(null);
@@ -101,31 +121,42 @@ async function onSwitchProfile(id: string) {
 }
 
 // Resizing logic
-let isResizing = false;
-function startResize(_e: MouseEvent) {
-  isResizing = true;
+const resizing = ref(false);
+function startResize() {
+  resizing.value = true;
+  document.body.classList.add("sidebar-resizing");
   document.addEventListener("mousemove", onMouseMove);
   document.addEventListener("mouseup", stopResize);
 }
 
 function onMouseMove(e: MouseEvent) {
-  if (!isResizing) return;
-  const newWidth = Math.max(180, Math.min(320, e.clientX));
+  if (!resizing.value) return;
+  const newWidth = normalizeSidebarWidth(e.clientX);
   sidebarWidth.value = newWidth;
   localStorage.setItem("aerina.unifiedSidebarWidth", String(newWidth));
+  window.dispatchEvent(new CustomEvent("aerina:sidebar-width", { detail: newWidth }));
 }
 
 function stopResize() {
-  isResizing = false;
+  resizing.value = false;
+  document.body.classList.remove("sidebar-resizing");
   document.removeEventListener("mousemove", onMouseMove);
   document.removeEventListener("mouseup", stopResize);
 }
 
+function resetSidebarWidth() {
+  sidebarWidth.value = SIDEBAR_MIN_WIDTH;
+  localStorage.setItem("aerina.unifiedSidebarWidth", String(SIDEBAR_MIN_WIDTH));
+  window.dispatchEvent(new CustomEvent("aerina:sidebar-width", { detail: SIDEBAR_MIN_WIDTH }));
+}
+
 onMounted(() => {
+  window.addEventListener("aerina:sidebar-width", syncSidebarWidth);
   void loadSession();
 });
 
 onUnmounted(() => {
+  window.removeEventListener("aerina:sidebar-width", syncSidebarWidth);
   stopResize();
 });
 
@@ -141,28 +172,30 @@ const allAssistants = computed(() => {
 const activeRole = computed(() => {
   return roleStore.roles.find((r) => r.id === activeRoleId.value) || roleStore.defaultRole;
 });
+const sidebarView = ref<"assistants" | "conversations">("assistants");
+
+function openRole(roleId: string) {
+  activeRoleId.value = roleId;
+  sidebarView.value = "conversations";
+}
+
+function backToAssistants() {
+  sidebarView.value = "assistants";
+}
+
+function roleIdForConversation(conversationId: string) {
+  return roleStore.convRoles[conversationId] || roleStore.defaultRoleId;
+}
 
 function countForRole(roleId: string) {
-  const defId = roleStore.defaultRoleId;
-  return props.conversations.filter((c) => {
-    const rId = roleStore.convRoles[c.id] || "default";
-    if (roleId === defId || roleId === "default") {
-      return rId === defId || rId === "default";
-    }
-    return rId === roleId;
-  }).length;
+  return props.conversations.filter((conversation) => roleIdForConversation(conversation.id) === roleId).length;
 }
 
 const activeRoleConversations = computed(() => {
-  const targetId = activeRoleId.value;
-  const defId = roleStore.defaultRoleId;
-
-  return props.conversations.filter((c) => {
-    const rId = roleStore.convRoles[c.id] || "default";
-    if (targetId === defId || targetId === "default") {
-      return rId === defId || rId === "default";
-    }
-    return rId === targetId;
+  const query = props.filter.trim().toLowerCase();
+  return props.conversations.filter((conversation) => {
+    if (roleIdForConversation(conversation.id) !== activeRoleId.value) return false;
+    return !query || conversation.title.toLowerCase().includes(query);
   });
 });
 
@@ -200,18 +233,14 @@ watch(
 );
 
 function createNew() {
-  if (activeRoleId.value === roleStore.defaultRoleId || activeRoleId.value === "default") {
-    emit("create");
-  } else {
-    emit("createWithRole", activeRoleId.value);
-  }
+  emit("createWithRole", activeRoleId.value);
 }
 </script>
 
 <template>
   <aside
     class="unified-sidebar"
-    :class="{ mobile }"
+    :class="{ mobile, resizing, 'navigation-only': navigationOnly }"
     :style="mobile ? {} : { width: sidebarWidth + 'px', flex: `0 0 ${sidebarWidth}px` }"
   >
     <!-- Header: Logo Brand & Titlebar Drag Region -->
@@ -219,100 +248,144 @@ function createNew() {
       <div class="unified-brand">
         <img class="unified-logo" src="/brand/logo-mark.png" alt="Aerina" />
         <span class="unified-title font-weight-bold">Aerina</span>
-        <span class="unified-version text-caption text-medium-emphasis ms-1">v0.1.0</span>
       </div>
     </div>
 
-    <!-- Quick Action: + New Chat Button & Search -->
-    <div class="unified-actions-block px-2 py-1">
-      <v-btn
-        v-if="!mobile"
-        block
-        color="primary"
-        variant="flat"
-        class="unified-new-btn mb-1"
-        prepend-icon="mdi-plus"
-        @click="createNew"
+    <nav v-if="!mobile" class="unified-primary-nav" :aria-label="t('app.name')">
+      <button
+        v-for="item in primaryItems"
+        :key="item.to"
+        type="button"
+        class="unified-primary-item"
+        :class="{ active: primaryActive(item) }"
+        :aria-current="primaryActive(item) ? 'page' : undefined"
+        @click="router.push(item.to)"
       >
-        {{ newLabel }}
-      </v-btn>
+        <v-icon :icon="item.icon" size="16" />
+        <span>{{ item.title }}</span>
+      </button>
+    </nav>
 
-      <div class="chat-search-row">
-        <label class="chat-search-box">
-          <v-icon icon="mdi-magnify" size="14" class="chat-search-icon" />
-          <input
-            class="chat-search-input"
-            type="search"
-            :value="filter"
-            :placeholder="searchLabel"
-            autocomplete="off"
-            spellcheck="false"
-            @input="emit('update:filter', ($event.target as HTMLInputElement).value)"
-          />
-        </label>
-
-      </div>
-    </div>
-
-    <!-- Scrollable Body: Assistant Roles Chips + Conversation List -->
-    <div class="unified-scroll-body">
-      <!-- Assistant Roles Horizontal Chips -->
-      <div class="unified-section-label px-2 pt-1">
-        <span>助手角色</span>
-      </div>
-
-      <div class="assistant-chips-scroller px-2 py-1">
-        <button
-          v-for="role in allAssistants"
-          :key="role.id"
-          type="button"
-          class="assistant-chip-item"
-          :class="{ active: activeRoleId === role.id }"
-          @click="activeRoleId = role.id"
-        >
-          <v-icon :icon="role.icon" size="13" />
-          <span class="chip-name">{{ role.name }}</span>
-          <span v-if="role.id === roleStore.defaultRoleId" class="chip-def-dot" title="默认助手" />
-          <span class="chip-count">{{ countForRole(role.id) }}</span>
-        </button>
-      </div>
-
-      <!-- Active Assistant's Conversations List -->
-      <div class="unified-section-label px-2 pt-2">
-        <span>{{ activeRole.name }} 的对话</span>
-      </div>
-
-      <div class="unified-conv-list px-1 py-0">
-        <template v-for="group in activeGroups" :key="group.key">
-          <div class="conv-group-label px-2 pt-1 mb-0">{{ group.label }}</div>
-          <button
-            v-for="item in group.items"
-            :key="item.id"
-            type="button"
-            class="conv-item"
-            :class="{ active: selectedId === item.id }"
-            @click="emit('select', item.id)"
-          >
-            <div class="conv-item-main">
-              <div class="conv-item-title">{{ item.title }}</div>
-              <div class="conv-item-sub">
-                <span class="conv-mode-dot" :class="item.mode === 'sbs' ? 'multi' : 'single'" />
-                {{ item.mode === "sbs" ? multiLabel : singleLabel }}
-              </div>
-            </div>
-            <div class="conv-item-actions" @click.stop>
-              <v-btn icon="mdi-download-outline" size="x-small" variant="text" @click="emit('export', item.id)" />
-              <v-btn icon="mdi-delete-outline" size="x-small" variant="text" @click="emit('remove', item.id)" />
-            </div>
-          </button>
-        </template>
-
-        <div v-if="!activeRoleConversations.length" class="empty-conv-placeholder py-4">
-          <v-icon :icon="activeRole.icon" size="24" class="mb-1 text-medium-emphasis" />
-          <div class="text-body-2 font-weight-medium">暂无对话</div>
-          <div class="text-caption text-medium-emphasis mt-1">点击上方 + 新建对话</div>
+    <!-- Assistant directory and its conversation drill-down -->
+    <div v-if="!navigationOnly" class="unified-scroll-body">
+      <section v-if="sidebarView === 'assistants'" class="unified-assistant-section">
+        <div class="assistant-pane-header">
+          <div>
+            <div class="sidebar-page-title">助手角色</div>
+            <div class="sidebar-page-subtitle">选择助手查看对应对话</div>
+          </div>
+          <span class="assistant-pane-count">{{ allAssistants.length }}</span>
         </div>
-      </div>
+
+        <div class="assistant-chips-scroller">
+          <button
+            v-for="role in allAssistants"
+            :key="role.id"
+            type="button"
+            class="assistant-chip-item"
+            :class="{ active: activeRoleId === role.id }"
+            @click="openRole(role.id)"
+          >
+            <span class="assistant-chip-icon"><v-icon :icon="role.icon" size="15" /></span>
+            <span class="chip-name">{{ role.name }}</span>
+            <span v-if="role.id === roleStore.defaultRoleId" class="chip-def-dot" title="默认助手" />
+            <span class="chip-count">{{ countForRole(role.id) }}</span>
+            <v-icon icon="mdi-chevron-right" size="16" class="assistant-chip-arrow" />
+          </button>
+        </div>
+      </section>
+
+      <section v-else class="unified-conversation-section">
+        <div class="conversation-pane-header">
+          <button
+            type="button"
+            class="sidebar-back-btn"
+            :title="t('common.back')"
+            :aria-label="t('common.back')"
+            @click="backToAssistants"
+          >
+            <v-icon icon="mdi-chevron-left" size="18" />
+          </button>
+          <div class="conversation-heading">
+            <span class="conversation-page-title">{{ activeRole.name }}</span>
+            <span class="conversation-context">{{ t("nav.chat") }} · {{ activeRoleConversations.length }}</span>
+          </div>
+          <v-btn
+            icon="mdi-plus"
+            variant="text"
+            density="comfortable"
+            size="small"
+            class="conversation-new-btn"
+            :title="newLabel"
+            :aria-label="newLabel"
+            @click="createNew"
+          />
+        </div>
+
+        <div class="chat-search-row conversation-search-row">
+          <label class="chat-search-box">
+            <v-icon icon="mdi-magnify" size="14" class="chat-search-icon" />
+            <input
+              class="chat-search-input"
+              type="search"
+              :value="filter"
+              :placeholder="searchLabel"
+              autocomplete="off"
+              spellcheck="false"
+              @input="emit('update:filter', ($event.target as HTMLInputElement).value)"
+            />
+          </label>
+        </div>
+
+        <div class="unified-conv-list">
+          <template v-for="group in activeGroups" :key="group.key">
+            <div class="conv-group-label">{{ group.label }}</div>
+            <button
+              v-for="item in group.items"
+              :key="item.id"
+              type="button"
+              class="conv-item"
+              :class="{ active: selectedId === item.id }"
+              @click="emit('select', item.id)"
+            >
+              <div class="conv-item-main">
+                <div class="conv-item-title">{{ item.title }}</div>
+                <div class="conv-item-sub">
+                  <span class="conv-mode-dot" :class="item.mode === 'sbs' ? 'multi' : 'single'" />
+                  {{ item.mode === "sbs" ? multiLabel : singleLabel }}
+                </div>
+              </div>
+              <div class="conv-item-actions" @click.stop>
+                <v-menu v-if="mobile" location="bottom end" :offset="4">
+                  <template #activator="{ props: actionMenuProps }">
+                    <v-btn
+                      v-bind="actionMenuProps"
+                      icon="mdi-dots-horizontal"
+                      size="x-small"
+                      variant="text"
+                      :aria-label="t('common.tools')"
+                    />
+                  </template>
+                  <v-list density="compact" min-width="132">
+                    <v-list-item prepend-icon="mdi-download-outline" :title="t('common.export')" @click="emit('export', item.id)" />
+                    <v-list-item prepend-icon="mdi-delete-outline" :title="t('common.delete')" @click="emit('remove', item.id)" />
+                  </v-list>
+                </v-menu>
+                <template v-else>
+                  <v-btn icon="mdi-download-outline" size="x-small" variant="text" @click="emit('export', item.id)" />
+                  <v-btn icon="mdi-delete-outline" size="x-small" variant="text" @click="emit('remove', item.id)" />
+                </template>
+              </div>
+            </button>
+          </template>
+
+          <div v-if="!activeRoleConversations.length" class="empty-conv-placeholder">
+            <v-icon :icon="activeRole.icon" size="22" class="mb-1 text-medium-emphasis" />
+            <div class="text-body-2 font-weight-medium">暂无对话</div>
+            <div class="text-caption text-medium-emphasis mt-1">点击上方 + 新建对话</div>
+          </div>
+        </div>
+      </section>
     </div>
 
     <!-- Footer: User Profile Activator -->
@@ -353,7 +426,7 @@ function createNew() {
 
           <div v-if="accountError" class="profile-menu-error">{{ accountError }}</div>
 
-          <div class="profile-menu-section">
+          <div class="profile-menu-section profile-menu-switch-list">
             <div class="profile-menu-label">{{ t("profile.switch") }}</div>
             <button
               v-for="p in session?.profiles || []"
@@ -415,12 +488,15 @@ function createNew() {
       </v-menu>
     </div>
 
-    <!-- Mouse Drag Resizer for Sidebar Width -->
-    <div
-      v-if="!mobile"
-      class="sidebar-col-resizer"
-      title="拖拽调整侧边栏宽度"
-      @mousedown.prevent="startResize"
-    />
   </aside>
+
+  <!-- Dedicated flex gutter keeps resizing clear of list scrollbars and actions. -->
+  <div
+    v-if="!mobile"
+    class="sidebar-col-resizer"
+    :class="{ resizing }"
+    title="拖拽调整侧边栏宽度"
+    @mousedown.prevent="startResize"
+    @dblclick.prevent="resetSidebarWidth"
+  />
 </template>

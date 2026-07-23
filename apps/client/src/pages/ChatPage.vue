@@ -77,7 +77,6 @@ function hasUsageInfo(obj: any) {
 }
 
 const session = ref<SessionInfo | null>(null);
-const mobileDrawer = ref(false);
 const mobileCandidateIndex = ref(0);
 const titleDraft = ref("");
 const temperature = ref(0.7);
@@ -247,11 +246,6 @@ const showThreadEmpty = computed(
     !(stream.isStreaming && stream.conversationId === selectedId.value),
 );
 
-const filteredConversations = computed(() => {
-  const q = convFilter.value.trim().toLowerCase();
-  if (!q) return conversations.value;
-  return conversations.value.filter((c) => c.title.toLowerCase().includes(q));
-});
 
 const multiModel = computed(() => selectedModels.value.length > 1);
 const hasConversation = computed(() => !!selectedId.value);
@@ -915,34 +909,16 @@ onMounted(async () => {
   await setupListener();
 });
 
-function handleMobileDrawerToggle() {
-  mobileDrawer.value = !mobileDrawer.value;
-}
-
-function handleMobileNewChat() {
-  createConversation();
-  mobileDrawer.value = false;
-}
 
 watch(
-  () => [mobile.value, selectedId.value, showList.value],
+  () => [props.active, mobile.value, selectedId.value, showList.value],
   () => {
-    const inSubpage = Boolean(mobile.value && selectedId.value && !showList.value);
+    const inSubpage = Boolean(props.active && mobile.value && selectedId.value && !showList.value);
     window.dispatchEvent(new CustomEvent("aerina:mobile-subpage-changed", { detail: { active: inSubpage } }));
   },
   { immediate: true },
 );
 
-onMounted(() => {
-  window.addEventListener("aerina:new-chat", handleMobileNewChat);
-  window.addEventListener("aerina:toggle-mobile-drawer", handleMobileDrawerToggle);
-});
-
-
-onUnmounted(() => {
-  window.removeEventListener("aerina:new-chat", handleMobileNewChat);
-  window.removeEventListener("aerina:toggle-mobile-drawer", handleMobileDrawerToggle);
-});
 
 void bannerError;
 void showThreadEmpty;
@@ -973,12 +949,11 @@ onUnmounted(() => {
     <!-- Desktop Permanent Unified Glass Sidebar -->
     <ConversationSidebar
       v-if="!mobile"
-      :conversations="filteredConversations"
+      :conversations="conversations"
       :selected-id="selectedId"
       :filter="convFilter"
       :new-label="t('chat.new')"
       :search-label="t('chat.search')"
-      :empty-label="t('chat.noConversations')"
       :multi-label="t('chat.multiModel')"
       :single-label="t('chat.singleModel')"
       :today-label="t('chat.today')"
@@ -986,22 +961,20 @@ onUnmounted(() => {
       :earlier-label="t('chat.earlier')"
       @update:filter="convFilter = $event"
       @select="openTab($event)"
-      @create="createConversation"
       @create-with-role="createConversationWithRole"
       @export="exportConversation"
       @remove="deleteConversation"
     />
 
     <!-- Mobile View 1: List View -->
-    <div v-else-if="showList || !selectedId" class="mobile-list-view">
+    <div v-else v-show="showList || !selectedId" class="mobile-list-view">
       <ConversationSidebar
         :mobile="true"
-        :conversations="filteredConversations"
+        :conversations="conversations"
         :selected-id="selectedId"
         :filter="convFilter"
         :new-label="t('chat.new')"
         :search-label="t('chat.search')"
-        :empty-label="t('chat.noConversations')"
         :multi-label="t('chat.multiModel')"
         :single-label="t('chat.singleModel')"
         :today-label="t('chat.today')"
@@ -1009,7 +982,6 @@ onUnmounted(() => {
         :earlier-label="t('chat.earlier')"
         @update:filter="convFilter = $event"
         @select="openTab($event)"
-        @create="createConversation(); showList = false"
         @create-with-role="createConversationWithRole($event); showList = false"
         @export="exportConversation"
         @remove="deleteConversation"
@@ -1088,7 +1060,7 @@ onUnmounted(() => {
           @click="showList = true"
         />
         <div class="chat-title">
-          <div v-if="editingTitle && selectedId" class="d-flex align-center ga-1">
+          <div v-if="editingTitle && selectedId" class="chat-title-edit d-flex align-center ga-1">
             <v-text-field
               v-model="titleDraft"
               density="compact"
@@ -1100,7 +1072,15 @@ onUnmounted(() => {
               @keydown.enter.prevent="saveTitle"
               @keydown.esc.prevent="editingTitle = false; titleDraft = detail?.conversation.title || ''"
             />
-            <v-btn size="small" color="primary" variant="text" @click="saveTitle">{{ t("common.save") }}</v-btn>
+            <v-btn
+              size="small"
+              color="primary"
+              variant="text"
+              class="title-save-btn"
+              :icon="mobile ? 'mdi-check' : undefined"
+              :aria-label="t('common.save')"
+              @click="saveTitle"
+            ><span v-if="!mobile">{{ t("common.save") }}</span></v-btn>
           </div>
           <button
             v-else
@@ -1110,10 +1090,10 @@ onUnmounted(() => {
             :title="t('chat.rename')"
             @click="editingTitle = true"
           >{{ detail?.conversation.title || t("chat.select") }}</button>
-          <div class="chat-title-sub text-truncate">{{ multiModel ? t("chat.multiModel") : (selectedPresetNames || t("chat.singleModel")) }}</div>
+          <div v-if="!editingTitle" class="chat-title-sub text-truncate">{{ multiModel ? t("chat.multiModel") : (selectedPresetNames || t("chat.singleModel")) }}</div>
         </div>
 
-        <v-menu v-if="branches.length > 1" location="bottom end" :offset="6">
+        <v-menu v-if="branches.length > 1 && !editingTitle" location="bottom end" :offset="6">
           <template #activator="{ props: branchProps }">
             <button
               type="button"
@@ -1151,7 +1131,16 @@ onUnmounted(() => {
           </div>
         </v-menu>
 
-        <v-btn icon="mdi-tune-variant" variant="text" :disabled="!selectedId" :title="t('chat.conversationSettings')" @click="settingsOpen = true" />
+        <v-btn
+          icon="mdi-tune-variant"
+          variant="text"
+          density="compact"
+          size="small"
+          class="chat-settings-btn"
+          :disabled="!selectedId"
+          :title="t('chat.conversationSettings')"
+          @click="settingsOpen = true"
+        />
       </header>
 
       <div v-if="showWelcome" class="chat-empty stage">

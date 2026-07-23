@@ -3,6 +3,7 @@ import { computed, defineAsyncComponent, onMounted, onUnmounted, reactive, ref, 
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import ChatPage from "../pages/ChatPage.vue";
+import ConversationSidebar from "../components/ConversationSidebar.vue";
 
 const ProfilePage = defineAsyncComponent(() => import("../pages/ProfilePage.vue"));
 const RankingPage = defineAsyncComponent(() => import("../pages/RankingPage.vue"));
@@ -14,6 +15,7 @@ const router = useRouter();
 const windowWidth = ref(window.innerWidth);
 const handleResize = () => { windowWidth.value = window.innerWidth; };
 const mobile = computed(() => windowWidth.value < 960);
+const mobileSubpageActive = ref(false);
 
 const items = computed(() => [
   { to: "/", title: t("nav.chat"), icon: "mdi-message-text-outline", exact: true },
@@ -35,6 +37,7 @@ watch(page, (p) => {
   if (p === "ranking") seen.ranking = true;
   if (p === "profile") seen.profile = true;
   if (p === "settings") seen.settings = true;
+  if (p !== "chat") mobileSubpageActive.value = false;
 }, { immediate: true });
 
 onMounted(() => {
@@ -61,15 +64,6 @@ const mobileTitle = computed(() => {
   return t("app.name");
 });
 
-function triggerMobileMenu() {
-  window.dispatchEvent(new CustomEvent("aerina:toggle-mobile-drawer"));
-}
-
-function triggerMobileNewChat() {
-  window.dispatchEvent(new CustomEvent("aerina:new-chat"));
-}
-
-const mobileSubpageActive = ref(false);
 
 function handleSubpageChange(e: Event) {
   const customEv = e as CustomEvent<{ active: boolean }>;
@@ -87,36 +81,38 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <!-- Mobile top bar: solid frosted glass, status bar safe area, menu & new chat buttons -->
+    <!-- Mobile top bar: compact brand header with page-specific actions -->
   <v-app-bar v-if="mobile && !mobileSubpageActive" flat density="compact" class="mobile-app-bar">
     <template #prepend>
-      <v-btn
-        icon="mdi-menu"
-        variant="text"
-        density="comfortable"
-        class="ms-1"
-        title="打开菜单"
-        @click="triggerMobileMenu"
-      />
+      <img class="mobile-app-logo ms-3" src="/brand/logo-mark.png" alt="" />
     </template>
+
 
     <v-app-bar-title class="text-body-1 font-weight-bold text-truncate px-1">
       {{ mobileTitle }}
     </v-app-bar-title>
 
-    <template #append>
-      <v-btn
-        icon="mdi-plus"
-        variant="tonal"
-        color="primary"
-        size="small"
-        class="me-2"
-        :title="t('chat.new')"
-        @click="triggerMobileNewChat"
-      />
-    </template>
-  </v-app-bar><v-main class="app-main" :class="{ 'has-tab-bar': mobile && !mobileSubpageActive }">
-    <div class="page-host">
+
+  </v-app-bar>
+
+  <div class="app-shell-frame">
+    <ConversationSidebar
+      v-if="!mobile && page !== 'chat'"
+      navigation-only
+      :conversations="[]"
+      :selected-id="null"
+      filter=""
+      :new-label="t('chat.new')"
+      :search-label="t('chat.search')"
+      :multi-label="t('chat.multiModel')"
+      :single-label="t('chat.singleModel')"
+      :today-label="t('chat.today')"
+      :yesterday-label="t('chat.yesterday')"
+      :earlier-label="t('chat.earlier')"
+    />
+
+    <v-main class="app-main" :class="{ 'has-tab-bar': mobile && !mobileSubpageActive }">
+      <div class="page-host">
       <div v-show="page === 'chat'" class="page-layer" :class="{ active: page === 'chat' }" :inert="page !== 'chat'">
         <ChatPage v-if="seen.chat" :active="page === 'chat'" />
       </div>
@@ -133,10 +129,11 @@ onUnmounted(() => {
           </keep-alive>
         </router-view>
       </div>
-    </div>
-  </v-main>
+      </div>
+    </v-main>
+  </div>
 
-  <!-- Apple HIG bottom tab bar: 3 tabs -->
+  <!-- Xiaomi-style mobile bottom navigation: 3 tabs -->
   <nav v-if="mobile && !mobileSubpageActive" class="aerina-tab-bar">
     <button
       v-for="item in items"
@@ -151,3 +148,21 @@ onUnmounted(() => {
     </button>
   </nav>
 </template>
+
+<style scoped>
+.app-shell-frame {
+  flex: 1 1 auto;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+}
+
+.app-main {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+</style>

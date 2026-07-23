@@ -106,7 +106,7 @@ onUnmounted(() => {
   top: 0;
   left: 0;
   right: 0;
-  height: 38px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -154,12 +154,35 @@ onUnmounted(() => {
   color: #ffffff !important;
 }
 
+.has-custom-titlebar {
+  --aerina-window-top-inset: 34px;
+}
+
 .app-content-container {
-  flex: 1;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
   height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-sizing: border-box;
+}
+
+.has-custom-titlebar .app-content-container {
+  padding-top: var(--aerina-window-top-inset);
+}
+
+@media (max-width: 959px) {
+  .custom-titlebar {
+    height: 32px;
+  }
+  .titlebar-btn {
+    width: 40px;
+  }
+  .has-custom-titlebar {
+    --aerina-window-top-inset: 32px;
+  }
 }
 </style>
