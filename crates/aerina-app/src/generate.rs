@@ -446,12 +446,19 @@ impl AppState {
             self.inner.db.update_candidate(&candidate).await?;
 
             let mut blocks = Vec::new();
-            if let Some(thinking) = thoughts.get(&id) {
-                if !thinking.is_empty() {
-                    blocks.push(ContentBlock::Thinking {
-                        text: thinking.clone(),
-                    });
-                }
+            let usage = usages.get(&id);
+            let thinking = thoughts.get(&id).cloned().unwrap_or_default();
+            if !thinking.is_empty()
+                || usage.and_then(|value| value.reasoning_tokens).is_some()
+                || usage
+                    .and_then(|value| value.reasoning_duration_ms)
+                    .is_some()
+            {
+                blocks.push(ContentBlock::Thinking {
+                    text: thinking,
+                    reasoning_tokens: usage.and_then(|value| value.reasoning_tokens),
+                    reasoning_duration_ms: usage.and_then(|value| value.reasoning_duration_ms),
+                });
             }
             if let Some(text) = outputs.get(&id) {
                 if !text.is_empty() {
@@ -496,7 +503,7 @@ impl AppState {
                 blocks.push(ContentBlock::text(String::new()));
             }
 
-            if let Some(usage) = usages.get(&id) {
+            if let Some(usage) = usage {
                 blocks.push(ContentBlock::UsageMeta {
                     prompt_tokens: usage.prompt_tokens,
                     completion_tokens: usage.completion_tokens,

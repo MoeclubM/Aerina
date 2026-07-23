@@ -453,8 +453,19 @@ onMounted(refresh);
 }
 
 @media (max-width: 700px) {
+  .settings-page-inner {
+    padding-top: 18px;
+  }
   .settings-page-header {
     grid-template-columns: 40px minmax(0, 1fr);
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .settings-page-title {
+    display: none;
+  }
+  .settings-page-desc {
+    font-size: 0.78rem;
   }
   .settings-primary-btn {
     grid-column: 1 / -1;

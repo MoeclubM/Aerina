@@ -443,6 +443,8 @@ impl crate::ModelProvider for AnthropicProvider {
                     cost_usd: None,
                     latency_ms: Some(latency_ms),
                     ttft_ms,
+                    reasoning_tokens: None,
+                    reasoning_duration_ms: None,
                 },
             };
             yield GenerationEvent::Done {

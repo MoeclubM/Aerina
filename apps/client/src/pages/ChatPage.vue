@@ -31,7 +31,7 @@ const windowWidth = ref(window.innerWidth);
 const handleResize = () => {
   windowWidth.value = window.innerWidth;
 };
-const mobile = computed(() => windowWidth.value < 960);
+const mobile = computed(() => windowWidth.value < 680);
 const stream = useStreamStore();
 const roleStore = useRoleStore();
 
@@ -80,6 +80,7 @@ const session = ref<SessionInfo | null>(null);
 const mobileCandidateIndex = ref(0);
 const titleDraft = ref("");
 const temperature = ref(0.7);
+const selectedRoleId = ref(roleStore.defaultRoleId);
 const editingTitle = ref(false);
 
 const conversations = shallowRef<Conversation[]>([]);
@@ -102,6 +103,7 @@ const convFilter = ref("");
 const pinBottom = ref(true);
 const settingsOpen = ref(false);
 const modelMenu = ref(false);
+const modeMenu = ref(false);
 const parentRef = ref<HTMLElement | null>(null);
 const importInput = ref<HTMLInputElement | null>(null);
 let unlisten: (() => void) | undefined;
@@ -414,6 +416,7 @@ async function refreshDetail() {
   hasMoreNewer.value = false;
   systemPrompt.value = page.settings.system_prompt ?? "";
   temperature.value = page.settings.temperature ?? 0.7;
+  selectedRoleId.value = roleStore.convRoles[page.conversation.id] || roleStore.defaultRoleId;
   titleDraft.value = page.conversation.title;
   selectedModels.value = [...(page.settings.model_preset_ids ?? [])];
   mobileCandidateIndex.value = 0;
@@ -584,9 +587,11 @@ async function createConversation() {
     model_preset_id: presetId,
   });
   roleStore.setConversationRole(conversation.id, defRole.id);
-  if (defRole.systemPrompt) {
-    await api.updateConversationSettings(conversation.id, defRole.systemPrompt, defRole.temperature);
-  }
+  await api.updateConversationSettings(
+    conversation.id,
+    defRole.systemPrompt || null,
+    defRole.temperature,
+  );
   openTab(conversation.id);
   if (selectedModels.value.length > 1) {
     await api.setConversationModels(conversation.id, selectedModels.value, "sbs");
@@ -610,9 +615,11 @@ async function createConversationWithRole(roleId: string) {
     model_preset_id: presetId,
   });
   roleStore.setConversationRole(conversation.id, role.id);
-  if (role.systemPrompt) {
-    await api.updateConversationSettings(conversation.id, role.systemPrompt, role.temperature);
-  }
+  await api.updateConversationSettings(
+    conversation.id,
+    role.systemPrompt || null,
+    role.temperature,
+  );
   openTab(conversation.id);
   if (selectedModels.value.length > 1) {
     await api.setConversationModels(conversation.id, selectedModels.value, "sbs");
@@ -624,6 +631,7 @@ async function createConversationWithRole(roleId: string) {
 
 async function deleteConversation(id: string) {
   await api.deleteConversation(id);
+  roleStore.removeConversationRole(id);
   closeTab(id);
   await refreshConversations();
   await refreshDetail();
@@ -646,11 +654,20 @@ function toggleModel(id: string) {
   void applyModels();
 }
 
+function applyConversationRole(roleId: string) {
+  const role = roleStore.roles.find((item) => item.id === roleId);
+  if (!role) return;
+  selectedRoleId.value = role.id;
+  systemPrompt.value = role.systemPrompt;
+  temperature.value = role.temperature;
+}
+
 async function saveSettings() {
   if (!selectedId.value) return;
   if (titleDraft.value.trim() && titleDraft.value.trim() !== detail.value?.conversation.title) {
     await api.renameConversation(selectedId.value, titleDraft.value.trim());
   }
+  roleStore.setConversationRole(selectedId.value, selectedRoleId.value);
   await api.updateConversationSettings(
     selectedId.value,
     systemPrompt.value || null,
@@ -769,6 +786,9 @@ function pickAttachments() {
 
 function openConversationSettings() {
   addMenu.value = false;
+  if (selectedId.value) {
+    selectedRoleId.value = roleStore.convRoles[selectedId.value] || roleStore.defaultRoleId;
+  }
   settingsOpen.value = true;
 }
 
@@ -780,6 +800,11 @@ function openMcpSettings() {
 function openProviderSettings() {
   addMenu.value = false;
   void router.push("/settings/providers");
+}
+
+function openAgentEntry() {
+  modeMenu.value = false;
+  window.dispatchEvent(new CustomEvent("aerina:open-agent-entry"));
 }
 
 async function onPickFiles(files: FileList | File[] | null) {
@@ -893,6 +918,7 @@ async function setupListener() {
     if (event.type === "stream_start") stream.streamStart(event.candidate_id, event.slot_label);
     else if (event.type === "text_delta") stream.appendDelta(event.candidate_id, event.delta);
     else if (event.type === "thinking_delta") stream.appendThinking(event.candidate_id, event.delta);
+    else if (event.type === "usage") stream.applyUsage(event.candidate_id, event.usage);
     else if (event.type === "done") stream.markDone(event.candidate_id);
     else if (event.type === "error") stream.markError(event.candidate_id, event.message);
   });
@@ -1001,7 +1027,7 @@ onUnmounted(() => {
 
     <!-- Main Chat Content (Desktop or Mobile Dedicated Sub-Page) -->
     <section v-show="!mobile || (mobile && !showList && selectedId)" class="chat-main">
-      <div v-if="openTabs.length" class="chat-tabs-bar">
+      <div v-if="openTabs.length" class="chat-tabs-bar" data-tauri-drag-region>
         <div class="chat-tabs-scroll" role="tablist" :aria-label="t('chat.tabs')">
           <div
             v-for="tab in openTabs"
@@ -1216,7 +1242,11 @@ onUnmounted(() => {
                   <div class="msg-col">
                     <div class="msg-meta"><span>{{ t("app.name") }}</span></div>
                     <div class="msg-bubble assistant-bubble">
-                      <ThinkingBlock :text="(rowAt(vItem.index) as any).thinking" />
+                      <ThinkingBlock
+                        :text="(rowAt(vItem.index) as any).thinking"
+                        :tokens="(rowAt(vItem.index) as any).thinkingTokens"
+                        :duration-ms="(rowAt(vItem.index) as any).thinkingDurationMs"
+                      />
                       <MarkdownView :text="(rowAt(vItem.index) as any).text" :cache-key="(rowAt(vItem.index) as any).cacheKey" />
                       <div v-if="hasUsageInfo(rowAt(vItem.index))" class="usage-line">
                         <span v-for="(part, pIdx) in formatUsageMeta(rowAt(vItem.index) as any)" :key="pIdx" class="usage-item">
@@ -1245,7 +1275,11 @@ onUnmounted(() => {
                             <span v-if="cand.selected" class="best-pill">{{ t("chat.best") }}</span>
                           </span>
                         </div>
-                        <ThinkingBlock :text="cand.thinking" />
+                        <ThinkingBlock
+                          :text="cand.thinking"
+                          :tokens="cand.thinkingTokens"
+                          :duration-ms="cand.thinkingDurationMs"
+                        />
                         <MarkdownView :text="cand.text" :cache-key="cand.cacheKey" />
                         <div v-if="hasUsageInfo(cand)" class="usage-line">
                           <span v-for="(part, pIdx) in formatUsageMeta(cand)" :key="pIdx" class="usage-item">
@@ -1267,14 +1301,24 @@ onUnmounted(() => {
                   <div class="msg-col" :class="{ wide: stream.candidates.length > 1 }">
                     <div class="msg-meta"><span>{{ t("chat.streaming") }}</span></div>
                     <div v-if="stream.candidates.length <= 1" class="msg-bubble assistant-bubble">
-                      <ThinkingBlock :text="stream.candidates[0]?.thinking || ''" />
+                      <ThinkingBlock
+                        :text="stream.candidates[0]?.thinking || ''"
+                        :tokens="stream.candidates[0]?.reasoningTokens"
+                        :duration-ms="stream.candidates[0]?.reasoningDurationMs"
+                        :streaming="Boolean(stream.candidates[0]?.thinking) && !stream.candidates[0]?.text && !stream.candidates[0]?.done"
+                      />
                       <MarkdownView :text="stream.candidates[0]?.text || ''" streaming />
                       <div v-if="!stream.candidates[0]?.text" class="text-medium-emphasis text-body-2">{{ t("chat.stopping") }}</div>
                     </div>
                     <div v-else class="round-grid" :class="gridClass(stream.candidates.length)">
                       <div v-for="cand in stream.candidates" :key="cand.candidateId" class="candidate-card">
                         <div class="msg-meta"><span class="cand-badge">{{ cand.slotLabel }}</span></div>
-                        <ThinkingBlock :text="cand.thinking" />
+                        <ThinkingBlock
+                          :text="cand.thinking"
+                          :tokens="cand.reasoningTokens"
+                          :duration-ms="cand.reasoningDurationMs"
+                          :streaming="Boolean(cand.thinking) && !cand.text && !cand.done"
+                        />
                         <MarkdownView :text="cand.text" streaming />
                         <div v-if="cand.error" class="text-error text-caption">{{ cand.error }}</div>
                       </div>
@@ -1370,7 +1414,34 @@ onUnmounted(() => {
                 </div>
               </v-menu>
 
-              <span class="composer-mode-chip">{{ multiModel ? t("chat.multiModel") : t("chat.singleModel") }}</span>
+              <v-menu v-model="modeMenu" location="top start">
+                <template #activator="{ props: menuProps }">
+                  <button type="button" class="composer-mode-chip composer-mode-button" :title="t('chat.runtimeMode')" v-bind="menuProps">
+                    <v-icon icon="mdi-message-text-outline" size="15" />
+                    <span class="composer-mode-text">{{ t("chat.conversationMode") }}</span>
+                    <v-icon icon="mdi-chevron-up" size="14" class="composer-mode-chevron" />
+                  </button>
+                </template>
+                <div class="runtime-mode-menu">
+                  <div class="runtime-mode-title">{{ t("chat.runtimeMode") }}</div>
+                  <button type="button" class="runtime-mode-item active" @click="modeMenu = false">
+                    <span class="runtime-mode-icon"><v-icon icon="mdi-message-text-outline" size="17" /></span>
+                    <span class="runtime-mode-copy">
+                      <strong>{{ t("chat.conversationMode") }}</strong>
+                      <small>{{ t("chat.conversationModeHint") }}</small>
+                    </span>
+                    <v-icon icon="mdi-check" size="16" />
+                  </button>
+                  <button type="button" class="runtime-mode-item reserved" @click="openAgentEntry">
+                    <span class="runtime-mode-icon"><v-icon icon="mdi-robot-outline" size="17" /></span>
+                    <span class="runtime-mode-copy">
+                      <strong>{{ t("chat.agentMode") }}</strong>
+                      <small>{{ t("chat.agentModeHint") }}</small>
+                    </span>
+                    <span class="runtime-mode-badge">{{ t("chat.comingSoon") }}</span>
+                  </button>
+                </div>
+              </v-menu>
             </div>
 
             <div class="composer-bar-right">
@@ -1405,6 +1476,25 @@ onUnmounted(() => {
       <v-card rounded="xl">
         <v-card-title class="pt-4 px-5 font-weight-bold">{{ t("chat.conversationSettings") }}</v-card-title>
         <v-card-text class="px-5">
+          <div class="mb-4">
+            <div class="d-flex align-center justify-space-between ga-3 mb-1">
+              <label class="compact-field-label">{{ t("chat.assistantRole") }}</label>
+              <v-btn size="x-small" variant="text" prepend-icon="mdi-account-cog-outline" @click="router.push('/settings/assistants'); settingsOpen = false">
+                {{ t("chat.manageAssistants") }}
+              </v-btn>
+            </div>
+            <v-select
+              :model-value="selectedRoleId"
+              :items="roleStore.roles"
+              item-title="name"
+              item-value="id"
+              density="compact"
+              variant="outlined"
+              hide-details
+              @update:model-value="applyConversationRole"
+            />
+            <div class="settings-field-hint mt-1">{{ t("chat.assistantRoleHint") }}</div>
+          </div>
           <div class="mb-4">
             <label class="compact-field-label mb-1">{{ t("chat.temperature") }}: {{ temperature }}</label>
             <v-slider v-model="temperature" :min="0" :max="2" :step="0.1" thumb-label color="primary" hide-details />

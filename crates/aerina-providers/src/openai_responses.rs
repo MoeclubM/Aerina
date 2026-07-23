@@ -198,6 +198,7 @@ impl crate::ModelProvider for OpenAiResponsesProvider {
             let mut prompt_tokens = None;
             let mut completion_tokens = None;
             let mut total_tokens = None;
+            let mut reasoning_tokens = None;
             // call_id / item_id -> (id, name, args)
             let mut tool_acc: HashMap<String, (String, String, String)> = HashMap::new();
 
@@ -358,6 +359,11 @@ impl crate::ModelProvider for OpenAiResponsesProvider {
                                     .and_then(|v| v.as_u64())
                                     .map(|v| v as u32)
                                     .or(total_tokens);
+                                reasoning_tokens = usage
+                                    .pointer("/output_tokens_details/reasoning_tokens")
+                                    .and_then(|v| v.as_u64())
+                                    .map(|v| v as u32)
+                                    .or(reasoning_tokens);
                             }
                         }
                         "error" => {
@@ -412,6 +418,8 @@ impl crate::ModelProvider for OpenAiResponsesProvider {
                     cost_usd: None,
                     latency_ms: Some(latency_ms),
                     ttft_ms,
+                    reasoning_tokens,
+                    reasoning_duration_ms: None,
                 },
             };
             yield GenerationEvent::Done {

@@ -120,6 +120,7 @@ impl crate::ModelProvider for OpenAiChatProvider {
             let mut prompt_tokens = None;
             let mut completion_tokens = None;
             let mut total_tokens = None;
+            let mut reasoning_tokens = None;
             let mut tool_acc: std::collections::HashMap<u32, (String, String, String)> = std::collections::HashMap::new();
 
             while let Some(chunk) = byte_stream.next().await {
@@ -180,6 +181,8 @@ impl crate::ModelProvider for OpenAiChatProvider {
                                 cost_usd: None,
                                 latency_ms: Some(latency_ms),
                                 ttft_ms,
+                                reasoning_tokens,
+                                reasoning_duration_ms: None,
                             },
                         };
                         yield GenerationEvent::Done {
@@ -194,6 +197,10 @@ impl crate::ModelProvider for OpenAiChatProvider {
                                 prompt_tokens = usage.prompt_tokens.or(prompt_tokens);
                                 completion_tokens = usage.completion_tokens.or(completion_tokens);
                                 total_tokens = usage.total_tokens.or(total_tokens);
+                                reasoning_tokens = usage
+                                    .completion_tokens_details
+                                    .and_then(|details| details.reasoning_tokens)
+                                    .or(reasoning_tokens);
                             }
                             if let Some(choice) = parsed.choices.first() {
                                 let thinking = choice
@@ -413,6 +420,12 @@ struct ChatUsage {
     prompt_tokens: Option<u32>,
     completion_tokens: Option<u32>,
     total_tokens: Option<u32>,
+    completion_tokens_details: Option<CompletionTokensDetails>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CompletionTokensDetails {
+    reasoning_tokens: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]

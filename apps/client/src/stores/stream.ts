@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
+import type { UsageReport } from "../api";
 
 export interface StreamCandidate {
   candidateId: string;
@@ -7,6 +8,8 @@ export interface StreamCandidate {
   text: string;
   thinking: string;
   done: boolean;
+  reasoningTokens?: number;
+  reasoningDurationMs?: number;
   error?: string;
 }
 
@@ -112,6 +115,19 @@ export const useStreamStore = defineStore("stream", () => {
     scheduleFlush();
   }
 
+  function applyUsage(candidateId: string, usage: UsageReport) {
+    flushPending();
+    const cur = ensure(candidateId);
+    byCandidate.value = {
+      ...byCandidate.value,
+      [candidateId]: {
+        ...cur,
+        reasoningTokens: usage.reasoning_tokens,
+        reasoningDurationMs: usage.reasoning_duration_ms,
+      },
+    };
+  }
+
   function markDone(candidateId: string) {
     flushPending();
     const cur = byCandidate.value[candidateId];
@@ -171,6 +187,7 @@ export const useStreamStore = defineStore("stream", () => {
     streamStart,
     appendDelta,
     appendThinking,
+    applyUsage,
     markDone,
     markError,
     finish,

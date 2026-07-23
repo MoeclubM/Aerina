@@ -37,11 +37,12 @@
     "dark": "Dark",
     "send": "Send",
     "stop": "Stop",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "close": "Close"
   },
   "appearance": {
     "title": "Appearance",
-    "desc": "Accent color, color mode, and language. Stored locally; ready for future account binding.",
+    "desc": "Adjust color mode, accent color, and interface language.",
     "theme": "Color mode",
     "language": "Language",
     "accent": "Accent color",
@@ -55,7 +56,8 @@
     "accentGreen": "Green",
     "accentOrange": "Orange",
     "accentRose": "Rose",
-    "accentSlate": "Slate"
+    "accentSlate": "Slate",
+    "assistantRoleLocalHint": "Custom assistants are stored on this device. Role templates are not included in conversation exports or backups."
   },
   "htmlPreview": {
     "title": "HTML Preview",
@@ -93,6 +95,15 @@
     "search": "Search conversations",
     "models": "Models",
     "singleModel": "Single model",
+    "runtimeMode": "Runtime mode",
+    "conversationMode": "Chat",
+    "conversationModeHint": "Standard chat and multi-model comparison",
+    "agentMode": "Agent mode",
+    "agentTab": "Agent",
+    "agentModeHint": "Reserved for planning and tool execution",
+    "agentModeEntryHint": "The Agent entry is reserved for future planning, tool use, and multi-step execution.",
+    "comingSoon": "Coming soon",
+    "comingSoonShort": "Soon",
     "multiModel": "Multi-model",
     "multiPlaceholder": "Message all selected models…",
     "assistant": "Assistant",
@@ -100,6 +111,9 @@
     "you": "You",
     "emptyHint": "One model is normal chat. Multi-select compares side by side; Pick best feeds the leaderboard.",
     "conversationSettings": "Conversation settings",
+    "assistantRole": "Assistant role",
+    "assistantRoleHint": "Applying a role updates the system prompt and temperature for future messages.",
+    "manageAssistants": "Manage assistants",
     "loadOlder": "Scroll up for earlier messages",
     "loadNewer": "Scroll to load newer messages",
     "rename": "Rename conversation",
@@ -135,7 +149,10 @@
     "closeOtherTabs": "Close other tabs",
     "configureProviders": "Configure providers",
     "composerPlaceholder": "Type a message…",
-    "send": "Send"
+    "send": "Send",
+    "agentPlan": "Task planning",
+    "agentTools": "Tool use",
+    "agentSteps": "Step execution"
   },
   "compare": {
     "title": "Side-by-side Compare",
@@ -223,15 +240,21 @@
   },
   "settings": {
     "title": "Settings",
-    "desc": "Providers, remote MCP, and appearance.",
+    "desc": "Personalization, model providers, and tool connections.",
     "providersTitle": "Providers & Models",
     "providersDesc": "Manage providers and models under each provider",
     "mcpTitle": "Remote MCP",
     "mcpDesc": "Add SSE / Streamable HTTP MCP servers",
+    "assistantRolesTitle": "Assistant roles",
+    "assistantRolesDesc": "Create and manage local custom assistants",
     "appearanceTitle": "Appearance",
-    "appearanceDesc": "Accent, theme, and local profile",
+    "appearanceDesc": "Color mode, accent, and language",
     "statsTitle": "Profile & stats",
-    "statsDesc": "Activity heatmap, usage, backups"
+    "statsDesc": "Activity heatmap, usage, backups",
+    "personalization": "Personalization",
+    "modelsAndTools": "Models & tools",
+    "profileTitle": "Local profile",
+    "profileDesc": "Change the current profile name and avatar"
   },
   "stats": {
     "title": "Usage stats",
@@ -294,5 +317,35 @@
   "ranking": {
     "title": "Model Ranking",
     "desc": "Elo ranking from multi-model “pick best” comparisons."
+  },
+  "profileSettings": {
+    "title": "Local profile",
+    "desc": "Change the display name and avatar for this local identity."
+  },
+  "assistants": {
+    "title": "Assistant roles",
+    "desc": "Manage the default assistant and create task-specific roles.",
+    "management": "Role management",
+    "managementDesc": "Built-in roles remain read-only. You can create and edit your own system prompts.",
+    "add": "Add custom role",
+    "defaultRole": "Default role",
+    "defaultHint": "New conversations inherit this role",
+    "defaultBadge": "Default",
+    "builtinBadge": "Built-in",
+    "setDefault": "Set default",
+    "editAria": "Edit role",
+    "deleteAria": "Delete role",
+    "editTitle": "Edit custom role",
+    "addTitle": "Add custom role",
+    "name": "Role name",
+    "namePlaceholder": "For example: Frontend specialist",
+    "icon": "Icon (MDI Icon)",
+    "description": "Role description",
+    "descriptionPlaceholder": "Describe this role’s focus and skills",
+    "systemPrompt": "System prompt",
+    "promptPlaceholder": "For example: You are an expert frontend developer...",
+    "temperature": "Sampling temperature",
+    "saveChanges": "Save changes",
+    "create": "Create role"
   }
 }

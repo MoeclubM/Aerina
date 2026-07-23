@@ -210,8 +210,20 @@ impl AppState {
         self.inner.db.update_candidate(&candidate).await?;
 
         let mut blocks = Vec::new();
-        if !thinking.is_empty() {
-            blocks.push(ContentBlock::Thinking { text: thinking });
+        let thinking_usage = usage.as_ref();
+        if !thinking.is_empty()
+            || thinking_usage
+                .and_then(|value| value.reasoning_tokens)
+                .is_some()
+            || thinking_usage
+                .and_then(|value| value.reasoning_duration_ms)
+                .is_some()
+        {
+            blocks.push(ContentBlock::Thinking {
+                text: thinking,
+                reasoning_tokens: thinking_usage.and_then(|value| value.reasoning_tokens),
+                reasoning_duration_ms: thinking_usage.and_then(|value| value.reasoning_duration_ms),
+            });
         }
         if !output.is_empty() {
             blocks.push(ContentBlock::text(output));

@@ -43,12 +43,23 @@ const themeItems = computed(() => [
 ]);
 
 const primaryItems = computed(() => [
-  { to: "/", title: t("nav.chat"), icon: "mdi-message-text-outline", exact: true },
-  { to: "/ranking", title: t("nav.ranking"), icon: "mdi-trophy-outline", exact: false },
+  { key: "chat", to: "/", title: t("nav.chat"), icon: "mdi-message-text-outline", exact: true },
+  { key: "agent", title: t("chat.agentTab"), icon: "mdi-robot-outline", reserved: true, badge: t("chat.comingSoonShort") },
+  { key: "ranking", to: "/ranking", title: t("nav.ranking"), icon: "mdi-trophy-outline", exact: false },
+  { key: "settings", to: "/settings", title: t("nav.settings"), icon: "mdi-cog-outline", exact: false },
 ]);
 
-function primaryActive(item: { to: string; exact: boolean }) {
+function primaryActive(item: { to?: string; exact?: boolean }) {
+  if (!item.to) return false;
   return item.exact ? route.path === item.to : route.path === item.to || route.path.startsWith(`${item.to}/`);
+}
+
+function activatePrimary(item: { to?: string; reserved?: boolean }) {
+  if (item.reserved) {
+    window.dispatchEvent(new CustomEvent("aerina:open-agent-entry"));
+    return;
+  }
+  if (item.to) void router.push(item.to);
 }
 
 
@@ -254,15 +265,16 @@ function createNew() {
     <nav v-if="!mobile" class="unified-primary-nav" :aria-label="t('app.name')">
       <button
         v-for="item in primaryItems"
-        :key="item.to"
+        :key="item.key"
         type="button"
         class="unified-primary-item"
-        :class="{ active: primaryActive(item) }"
+        :class="{ active: primaryActive(item), reserved: item.reserved }"
         :aria-current="primaryActive(item) ? 'page' : undefined"
-        @click="router.push(item.to)"
+        @click="activatePrimary(item)"
       >
         <v-icon :icon="item.icon" size="16" />
         <span>{{ item.title }}</span>
+        <span v-if="item.badge" class="unified-primary-badge">{{ item.badge }}</span>
       </button>
     </nav>
 
@@ -274,7 +286,18 @@ function createNew() {
             <div class="sidebar-page-title">助手角色</div>
             <div class="sidebar-page-subtitle">选择助手查看对应对话</div>
           </div>
-          <span class="assistant-pane-count">{{ allAssistants.length }}</span>
+          <div class="assistant-pane-actions">
+            <span class="assistant-pane-count">{{ allAssistants.length }}</span>
+            <button
+              type="button"
+              class="assistant-manage-btn"
+              :title="t('chat.manageAssistants')"
+              :aria-label="t('chat.manageAssistants')"
+              @click="router.push('/settings/assistants')"
+            >
+              <v-icon icon="mdi-account-cog-outline" size="17" />
+            </button>
+          </div>
         </div>
 
         <div class="assistant-chips-scroller">
@@ -389,7 +412,7 @@ function createNew() {
     </div>
 
     <!-- Footer: User Profile Activator -->
-    <div class="unified-footer px-1 py-1 border-t">
+    <div class="unified-footer border-t">
       <v-menu
         v-model="menuOpen"
         location="top start"
@@ -474,10 +497,6 @@ function createNew() {
             <button type="button" class="profile-menu-item action" @click="menuOpen = false; router.push('/settings/appearance')">
               <v-icon icon="mdi-palette-outline" size="15" class="profile-menu-leading" />
               <span class="profile-menu-item-text">{{ t("nav.appearance") }}</span>
-            </button>
-            <button type="button" class="profile-menu-item action" @click="menuOpen = false; router.push('/settings')">
-              <v-icon icon="mdi-cog-outline" size="15" class="profile-menu-leading" />
-              <span class="profile-menu-item-text">{{ t("nav.settings") }}</span>
             </button>
             <button type="button" class="profile-menu-item action" @click="menuOpen = false; router.push('/ranking')">
               <v-icon icon="mdi-trophy-outline" size="15" class="profile-menu-leading" />

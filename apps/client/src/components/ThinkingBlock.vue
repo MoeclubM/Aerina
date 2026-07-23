@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 const props = withDefaults(
@@ -19,13 +19,31 @@ const props = withDefaults(
 
 const { t } = useI18n();
 const open = ref(props.defaultOpen || props.streaming);
+const liveDurationMs = ref(0);
+let liveStartedAt = 0;
+let liveTimer: ReturnType<typeof setInterval> | undefined;
 
 watch(
   () => props.streaming,
   (streaming) => {
-    if (streaming) open.value = true;
+    if (streaming) {
+      open.value = true;
+      liveStartedAt = performance.now();
+      liveDurationMs.value = 0;
+      liveTimer = setInterval(() => {
+        liveDurationMs.value = performance.now() - liveStartedAt;
+      }, 100);
+    } else if (liveTimer) {
+      clearInterval(liveTimer);
+      liveTimer = undefined;
+    }
   },
+  { immediate: true },
 );
+
+onUnmounted(() => {
+  if (liveTimer) clearInterval(liveTimer);
+});
 
 function toggle() {
   open.value = !open.value;
@@ -33,18 +51,28 @@ function toggle() {
 
 const metaText = computed(() => {
   const parts: string[] = [];
-  if (props.tokens != null) {
-    parts.push(`${props.tokens >= 1000 ? (props.tokens / 1000).toFixed(1) + "k" : props.tokens} tok`);
+  let tokens = props.tokens;
+  let estimated = false;
+  if (tokens == null && props.text.trim()) {
+    const cjkCount = (props.text.match(/[\u3400-\u9fff\uf900-\ufaff]/g) || []).length;
+    const otherLength = props.text.replace(/[\u3400-\u9fff\uf900-\ufaff]/g, "").trim().length;
+    tokens = Math.max(1, cjkCount + Math.ceil(otherLength / 4));
+    estimated = true;
   }
-  if (props.durationMs != null) {
-    parts.push(props.durationMs >= 1000 ? (props.durationMs / 1000).toFixed(1) + "s" : Math.round(props.durationMs) + "ms");
+  if (tokens != null) {
+    const value = tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : String(tokens);
+    parts.push(`${estimated ? "≈" : ""}${value} tok`);
+  }
+  const durationMs = props.durationMs ?? (props.streaming ? liveDurationMs.value : undefined);
+  if (durationMs != null) {
+    parts.push(durationMs >= 1000 ? `${(durationMs / 1000).toFixed(1)}s` : `${Math.round(durationMs)}ms`);
   }
   return parts.join(" · ");
 });
 </script>
 
 <template>
-  <div v-if="text || streaming" class="thinking">
+  <div v-if="text || streaming || tokens != null || durationMs != null" class="thinking">
     <button type="button" class="thinking-toggle" @click="toggle">
       <v-icon
         :icon="open ? 'mdi-chevron-down' : 'mdi-chevron-right'"

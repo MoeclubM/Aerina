@@ -10,6 +10,10 @@ pub enum ContentBlock {
     },
     Thinking {
         text: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reasoning_tokens: Option<u32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reasoning_duration_ms: Option<u64>,
     },
     Image {
         media_id: MediaObjectId,

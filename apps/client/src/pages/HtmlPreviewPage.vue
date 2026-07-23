@@ -87,7 +87,7 @@ const source = loadHtmlPreview(String(route.params.previewId));
   text-align: center;
 }
 
-@media (max-width: 959px) {
+@media (max-width: 679px) {
   .html-preview-toolbar {
     min-height: 58px;
     padding: 8px 12px;

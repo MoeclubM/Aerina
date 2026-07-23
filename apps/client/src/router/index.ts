@@ -54,6 +54,16 @@ export const router = createRouter({
           component: () => import("../pages/settings/McpPage.vue"),
         },
         {
+          path: "settings/profile",
+          name: "profile-settings",
+          component: () => import("../pages/settings/ProfileSettingsPage.vue"),
+        },
+        {
+          path: "settings/assistants",
+          name: "assistants",
+          component: () => import("../pages/settings/AssistantsPage.vue"),
+        },
+        {
           path: "settings/appearance",
           name: "appearance",
           component: () => import("../pages/settings/AppearancePage.vue"),

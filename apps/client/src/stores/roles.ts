@@ -115,11 +115,18 @@ export const useRoleStore = defineStore("roles", () => {
     const index = customRoles.value.findIndex((role) => role.id === id);
     if (index === -1) return;
     customRoles.value.splice(index, 1);
+    for (const [conversationId, roleId] of Object.entries(convRoles.value)) {
+      if (roleId === id) delete convRoles.value[conversationId];
+    }
     if (defaultRoleId.value === id) defaultRoleId.value = "default";
   }
 
   function setConversationRole(convId: string, roleId: string) {
-    convRoles.value[convId] = roleId;
+    if (roles.value.some((role) => role.id === roleId)) convRoles.value[convId] = roleId;
+  }
+
+  function removeConversationRole(convId: string) {
+    delete convRoles.value[convId];
   }
 
   function getConversationRole(convId: string): RoleAssistant {
@@ -137,6 +144,7 @@ export const useRoleStore = defineStore("roles", () => {
     updateRole,
     deleteRole,
     setConversationRole,
+    removeConversationRole,
     getConversationRole,
   };
 });

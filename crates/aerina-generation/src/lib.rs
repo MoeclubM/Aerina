@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use futures::{stream, StreamExt};
 use serde_json::Value;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio_util::sync::CancellationToken;
 
 #[derive(Clone)]
@@ -283,12 +284,50 @@ impl GenerationEngine {
                         .await?
                 }
             };
-            streams.push(stream);
+            streams.push(with_reasoning_duration(stream));
         }
 
         let merged = stream::select_all(streams);
         Ok(Box::pin(merged))
     }
+}
+
+fn with_reasoning_duration(mut stream: EventStream) -> EventStream {
+    Box::pin(async_stream::stream! {
+        let mut thinking_started_at: Option<Instant> = None;
+        let mut thinking_duration = Duration::ZERO;
+        let mut saw_thinking = false;
+
+        while let Some(mut event) = stream.next().await {
+            let now = Instant::now();
+            match &mut event {
+                GenerationEvent::ThinkingDelta { .. } => {
+                    saw_thinking = true;
+                    if thinking_started_at.is_none() {
+                        thinking_started_at = Some(now);
+                    }
+                }
+                GenerationEvent::TextDelta { .. }
+                | GenerationEvent::Done { .. }
+                | GenerationEvent::Error { .. } => {
+                    if let Some(started_at) = thinking_started_at.take() {
+                        thinking_duration += now.duration_since(started_at);
+                    }
+                }
+                GenerationEvent::Usage { usage, .. } => {
+                    if let Some(started_at) = thinking_started_at.take() {
+                        thinking_duration += now.duration_since(started_at);
+                    }
+                    if saw_thinking {
+                        usage.reasoning_duration_ms =
+                            Some((thinking_duration.as_millis() as u64).max(1));
+                    }
+                }
+                _ => {}
+            }
+            yield event;
+        }
+    })
 }
 
 impl Default for GenerationEngine {

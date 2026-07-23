@@ -77,6 +77,19 @@ export interface ContentBlock {
   latency_ms?: number;
   ttft_ms?: number;
   cost_usd?: number;
+  reasoning_tokens?: number;
+  reasoning_duration_ms?: number;
+}
+
+export interface UsageReport {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  cost_usd?: number;
+  latency_ms?: number;
+  ttft_ms?: number;
+  reasoning_tokens?: number;
+  reasoning_duration_ms?: number;
 }
 
 export interface MessageView {
@@ -241,7 +254,7 @@ export interface GenerationEventPayload {
     | { type: "stream_start"; candidate_id: string; slot_label: string }
     | { type: "text_delta"; candidate_id: string; delta: string }
     | { type: "thinking_delta"; candidate_id: string; delta: string }
-    | { type: "usage"; candidate_id: string; usage: Record<string, unknown> }
+    | { type: "usage"; candidate_id: string; usage: UsageReport }
     | { type: "done"; candidate_id: string }
     | { type: "error"; candidate_id: string; message: string }
     | { type: "image_ready"; candidate_id: string; image: Record<string, unknown> }

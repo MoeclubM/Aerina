@@ -37,11 +37,12 @@
     "dark": "深色",
     "send": "发送",
     "stop": "停止",
-    "refresh": "刷新"
+    "refresh": "刷新",
+    "close": "关闭"
   },
   "appearance": {
     "title": "外观",
-    "desc": "主题色、颜色模式与语言；本地记忆，后续登录可绑定同一配置。",
+    "desc": "调整颜色模式、主题色与界面语言。",
     "theme": "颜色模式",
     "language": "语言",
     "accent": "主题色",
@@ -55,7 +56,8 @@
     "accentGreen": "绿色",
     "accentOrange": "橙色",
     "accentRose": "玫红",
-    "accentSlate": "石板灰"
+    "accentSlate": "石板灰",
+    "assistantRoleLocalHint": "自定义助手目前保存在此设备；角色模板不会随会话导出或备份同步。"
   },
   "htmlPreview": {
     "title": "HTML 预览",
@@ -93,6 +95,15 @@
     "search": "搜索对话",
     "models": "模型",
     "singleModel": "单模型",
+    "runtimeMode": "运行模式",
+    "conversationMode": "对话",
+    "conversationModeHint": "普通聊天与多模型对比",
+    "agentMode": "Agent 模式",
+    "agentTab": "Agent",
+    "agentModeHint": "为任务规划与工具执行预留",
+    "agentModeEntryHint": "Agent 模式入口已经预留，后续将用于任务规划、工具调用和多步骤执行。",
+    "comingSoon": "即将推出",
+    "comingSoonShort": "预留",
     "multiModel": "多模型",
     "multiPlaceholder": "向所选模型同时发送…",
     "assistant": "助手",
@@ -100,6 +111,9 @@
     "you": "你",
     "emptyHint": "单模型即普通对话；多选模型并排对比，点「选为最佳」计入排行榜。",
     "conversationSettings": "对话设置",
+    "assistantRole": "助手角色",
+    "assistantRoleHint": "应用角色后会更新系统提示词与温度，仅影响后续消息。",
+    "manageAssistants": "管理助手",
     "loadOlder": "向上滚动加载更早消息",
     "loadNewer": "滚动加载较新消息",
     "rename": "重命名对话",
@@ -135,7 +149,10 @@
     "closeOtherTabs": "关闭其他标签",
     "configureProviders": "配置供应商",
     "composerPlaceholder": "输入消息…",
-    "send": "发送"
+    "send": "发送",
+    "agentPlan": "任务规划",
+    "agentTools": "工具调用",
+    "agentSteps": "分步执行"
   },
   "compare": {
     "title": "多模型对比",
@@ -223,15 +240,21 @@
   },
   "settings": {
     "title": "设置",
-    "desc": "供应商、远程 MCP 与外观。",
+    "desc": "个性化、模型供应商与工具连接。",
     "providersTitle": "供应商与模型",
     "providersDesc": "管理 Provider 及其下的模型",
     "mcpTitle": "远程 MCP",
     "mcpDesc": "添加 SSE / Streamable HTTP MCP 服务器",
+    "assistantRolesTitle": "助手角色",
+    "assistantRolesDesc": "创建和管理本机自定义助手",
     "appearanceTitle": "外观",
-    "appearanceDesc": "主题色、外观与本地用户",
+    "appearanceDesc": "颜色模式、主题色与语言",
     "statsTitle": "用户与统计",
-    "statsDesc": "活动热力图、用量与备份"
+    "statsDesc": "活动热力图、用量与备份",
+    "personalization": "个性化",
+    "modelsAndTools": "模型与工具",
+    "profileTitle": "本地用户",
+    "profileDesc": "修改当前用户的名称与头像"
   },
   "stats": {
     "title": "使用统计",
@@ -294,5 +317,35 @@
   "ranking": {
     "title": "模型排名",
     "desc": "根据多模型对话里「选为最佳」累计的 Elo 排名。"
+  },
+  "profileSettings": {
+    "title": "本地用户",
+    "desc": "修改当前本地身份的显示名称与头像。"
+  },
+  "assistants": {
+    "title": "助手角色",
+    "desc": "管理默认助手，并为不同任务创建专属角色。",
+    "management": "角色管理",
+    "managementDesc": "内置角色保持只读，你可以新增并编辑自己的系统提示词。",
+    "add": "新增自定义角色",
+    "defaultRole": "默认角色",
+    "defaultHint": "新建对话将继承此角色的设定",
+    "defaultBadge": "默认",
+    "builtinBadge": "内置",
+    "setDefault": "设为默认",
+    "editAria": "编辑角色",
+    "deleteAria": "删除角色",
+    "editTitle": "编辑自定义角色",
+    "addTitle": "新增自定义角色",
+    "name": "角色名称",
+    "namePlaceholder": "例如：前端开发专家",
+    "icon": "图标（MDI Icon）",
+    "description": "角色描述",
+    "descriptionPlaceholder": "描述此角色的专业领域与技能",
+    "systemPrompt": "系统提示词（System Prompt）",
+    "promptPlaceholder": "例如：You are an expert frontend developer...",
+    "temperature": "随机度 / 采样温度（Temperature）",
+    "saveChanges": "保存修改",
+    "create": "创建角色"
   }
 }

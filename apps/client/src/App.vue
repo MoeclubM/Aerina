@@ -38,7 +38,12 @@ const close = () => {
   void appWindow?.close();
 };
 
+function blockContextMenu(event: MouseEvent) {
+  event.preventDefault();
+}
+
 onMounted(async () => {
+  document.addEventListener("contextmenu", blockContextMenu);
   unbind = preferences.bindRuntime();
 
   if (!isTauri()) return;
@@ -60,6 +65,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  document.removeEventListener("contextmenu", blockContextMenu);
   unbind?.();
   unlistenResize?.();
 });
@@ -119,7 +125,7 @@ onUnmounted(() => {
   flex: 1 1 auto;
   min-width: 0;
   height: 100%;
-  pointer-events: auto;
+  pointer-events: none;
 }
 .titlebar-actions {
   display: flex;
@@ -170,11 +176,34 @@ onUnmounted(() => {
   box-sizing: border-box;
 }
 
-.has-custom-titlebar .app-content-container {
-  padding-top: var(--aerina-window-top-inset);
+@media (min-width: 680px) {
+  .has-custom-titlebar .unified-header {
+    height: var(--aerina-window-top-inset);
+    padding-inline: 12px;
+  }
+
+  .has-custom-titlebar .unified-logo {
+    width: 24px;
+    height: 24px;
+  }
+
+  .has-custom-titlebar .unified-title {
+    font-size: 0.96rem;
+  }
+
+  .has-custom-titlebar .chat-tabs-bar {
+    min-height: var(--aerina-window-top-inset);
+    padding-inline-end: 138px;
+  }
 }
 
-@media (max-width: 959px) {
+@media (max-width: 679px) {
+  .has-custom-titlebar .app-content-container {
+    padding-top: var(--aerina-window-top-inset);
+  }
+  .titlebar-drag {
+    pointer-events: auto;
+  }
   .custom-titlebar {
     height: 32px;
   }

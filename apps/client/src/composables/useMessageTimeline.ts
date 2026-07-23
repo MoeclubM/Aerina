@@ -84,7 +84,7 @@ export function thinkingOf(message: MessageView): string {
 export function thinkingMetaOf(message: MessageView): { tokens?: number; durationMs?: number } {
   const block = message.blocks.find((b) => b.type === "thinking");
   return {
-    tokens: block?.completion_tokens ?? block?.total_tokens,
-    durationMs: block?.latency_ms,
+    tokens: block?.reasoning_tokens,
+    durationMs: block?.reasoning_duration_ms,
   };
 }

@@ -54,7 +54,7 @@ async function openHtmlPreview(event: MouseEvent) {
   const previewId = saveHtmlPreview(htmlPreviews.value[Number(button.dataset.htmlPreviewIndex)]);
   const previewUrl = router.resolve({ name: "html-preview", params: { previewId } }).href;
 
-  if (window.matchMedia("(max-width: 959px)").matches) {
+  if (window.matchMedia("(max-width: 679px)").matches) {
     await router.push(previewUrl);
     return;
   }

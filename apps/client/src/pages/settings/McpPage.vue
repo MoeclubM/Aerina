@@ -80,12 +80,12 @@ onMounted(refresh);
 </script>
 
 <template>
-  <v-container class="py-6" style="max-width: 840px">
-    <div class="d-flex align-center ga-2 mb-4 flex-wrap">
+  <v-container class="mcp-page py-6" style="max-width: 840px">
+    <div class="mcp-header d-flex align-center ga-2 mb-4 flex-wrap">
       <v-btn class="d-md-none" icon="mdi-arrow-left" variant="text" @click="router.push('/settings')" />
       <div class="flex-grow-1" style="min-width: 0">
-        <div class="text-h5 mb-1">{{ t("mcp.title") }}</div>
-        <div class="text-body-2 text-medium-emphasis">{{ t("mcp.desc") }}</div>
+        <div class="mcp-title text-h5 mb-1">{{ t("mcp.title") }}</div>
+        <div class="mcp-desc text-body-2 text-medium-emphasis">{{ t("mcp.desc") }}</div>
       </div>
       <v-btn variant="tonal" prepend-icon="mdi-wrench" @click="listTools">{{ t("mcp.listTools") }}</v-btn>
       <v-btn color="primary" prepend-icon="mdi-plus" @click="showForm = !showForm">{{ t("mcp.add") }}</v-btn>
@@ -152,3 +152,23 @@ onMounted(refresh);
     </v-list>
   </v-container>
 </template>
+
+<style scoped>
+@media (max-width: 679px) {
+  .mcp-page {
+    padding-top: 18px !important;
+    padding-inline: 12px !important;
+  }
+  .mcp-header {
+    align-items: center !important;
+    margin-bottom: 14px !important;
+  }
+  .mcp-title {
+    display: none;
+  }
+  .mcp-desc {
+    font-size: 0.78rem !important;
+    line-height: 1.4;
+  }
+}
+</style>
