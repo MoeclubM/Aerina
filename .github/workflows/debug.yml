@@ -221,3 +221,67 @@ jobs:
           path: dist/
           if-no-files-found: error
           retention-days: 14
+
+  android-beta:
+    name: Android Beta
+    runs-on: ubuntu-latest
+    needs: get-version
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Patch version
+        run: |
+          VERSION="${{ needs.get-version.outputs.version }}"
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" apps/client/src-tauri/tauri.conf.json
+
+      - name: Initialize Android project
+        run: npm run tauri -w client -- android init --ci
+
+      - name: Build Android debug APK
+        run: npm run tauri -w client -- android build --ci --debug --apk
+
+      - name: Collect Android artifacts
+        run: |
+          mkdir -p dist
+          VERSION="${{ needs.get-version.outputs.version }}"
+          find apps/client/src-tauri/gen/android/app/build/outputs -type f -name "*.apk" | while read -r f; do
+            base="$(basename "$f")"
+            cp "$f" "dist/Aerina-Android-${VERSION}-${base}"
+          done
+          ls -la dist/
+
+      - name: Upload Android beta APKs
+        uses: actions/upload-artifact@v7
+        with:
+          name: aerina-beta-android-${{ github.run_id }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14

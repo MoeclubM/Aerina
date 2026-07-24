@@ -169,9 +169,74 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+  android:
+    name: Build Android
+    needs: get-version
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Patch version
+        run: |
+          VERSION="${{ needs.get-version.outputs.version }}"
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" apps/client/src-tauri/tauri.conf.json
+
+      - name: Initialize Android project
+        run: npm run tauri -w client -- android init --ci
+
+      - name: Build Android APK and AAB
+        run: npm run tauri -w client -- android build --ci --apk --aab
+
+      - name: Collect Android artifacts
+        run: |
+          mkdir -p dist
+          VERSION="${{ needs.get-version.outputs.version }}"
+          RUN_ID="${GITHUB_RUN_ID}"
+          find apps/client/src-tauri/gen/android/app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \) | while read -r f; do
+            base="$(basename "$f")"
+            cp "$f" "dist/Aerina-Android-${VERSION}-${RUN_ID}-${base}"
+          done
+          ls -la dist/
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: aerina-release-Android-${{ github.run_id }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
   release:
     name: Create GitHub Release
-    needs: [get-version, build]
+    needs: [get-version, build, android]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -186,6 +251,7 @@ jobs:
             -name "*.msi" -o -name "*.exe" -o -name "*.nsis.zip" \
             -o -name "*.dmg" -o -name "*.app.tar.gz" -o -name "*.app.tar.gz.sig" \
             -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \
+            -o -name "*.apk" -o -name "*.aab" \
           \) -exec cp {} release/ \;
           ls -la release/
 
@@ -208,6 +274,9 @@ jobs:
             echo ""
             echo "### Linux"
             echo "- AppImage, deb, and rpm packages are attached below."
+            echo ""
+            echo "### Android"
+            echo "- APK and AAB artifacts are attached below; release signing is still required before distribution."
           } >> release-body.md
 
           if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then

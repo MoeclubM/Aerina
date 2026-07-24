@@ -68,12 +68,14 @@ function resetAccent() {
   <div class="appearance-page">
     <div class="appearance-inner">
       <header class="appearance-header">
-        <v-btn
-          class="d-md-none appearance-back"
-          icon="mdi-arrow-left"
-          variant="text"
+        <button
+          type="button"
+          class="settings-mobile-back"
+          :aria-label="t('common.back')"
           @click="router.push('/settings')"
-        />
+        >
+          <v-icon icon="mdi-arrow-left" size="22" />
+        </button>
         <div class="appearance-header-text">
           <h1 class="appearance-title">{{ t("appearance.title") }}</h1>
           <p class="appearance-desc">{{ t("appearance.desc") }}</p>

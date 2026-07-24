@@ -533,52 +533,55 @@ pub fn run() {
                 .expect("failed to bootstrap aerina app state");
             app.manage(SharedState(Arc::new(state)));
 
-            // Setup tray icon and context menu
-            let quit_i =
-                tauri::menu::MenuItem::with_id(app, "quit", "退出 (Quit)", true, None::<&str>)?;
-            let show_i = tauri::menu::MenuItem::with_id(
-                app,
-                "show",
-                "显示窗口 (Show Window)",
-                true,
-                None::<&str>,
-            )?;
-            let menu = tauri::menu::Menu::with_items(app, &[&show_i, &quit_i])?;
+            #[cfg(desktop)]
+            {
+                // Setup tray icon and context menu
+                let quit_i =
+                    tauri::menu::MenuItem::with_id(app, "quit", "退出 (Quit)", true, None::<&str>)?;
+                let show_i = tauri::menu::MenuItem::with_id(
+                    app,
+                    "show",
+                    "显示窗口 (Show Window)",
+                    true,
+                    None::<&str>,
+                )?;
+                let menu = tauri::menu::Menu::with_items(app, &[&show_i, &quit_i])?;
 
-            let _tray = tauri::tray::TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
-                .menu(&menu)
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "quit" => {
-                        app.exit(0);
-                    }
-                    "show" => {
-                        if let Some(window) = app.webview_windows().values().next() {
-                            let _ = window.show();
-                            let _ = window.set_focus();
+                let _tray = tauri::tray::TrayIconBuilder::new()
+                    .icon(app.default_window_icon().unwrap().clone())
+                    .menu(&menu)
+                    .on_menu_event(|app, event| match event.id.as_ref() {
+                        "quit" => {
+                            app.exit(0);
                         }
-                    }
-                    _ => {}
-                })
-                .on_tray_icon_event(|tray, event| {
-                    if let tauri::tray::TrayIconEvent::Click {
-                        button: tauri::tray::MouseButton::Left,
-                        button_state: tauri::tray::MouseButtonState::Up,
-                        ..
-                    } = event
-                    {
-                        let app = tray.app_handle();
-                        if let Some(window) = app.webview_windows().values().next() {
-                            if window.is_visible().unwrap_or(false) {
-                                let _ = window.hide();
-                            } else {
+                        "show" => {
+                            if let Some(window) = app.webview_windows().values().next() {
                                 let _ = window.show();
                                 let _ = window.set_focus();
                             }
                         }
-                    }
-                })
-                .build(app)?;
+                        _ => {}
+                    })
+                    .on_tray_icon_event(|tray, event| {
+                        if let tauri::tray::TrayIconEvent::Click {
+                            button: tauri::tray::MouseButton::Left,
+                            button_state: tauri::tray::MouseButtonState::Up,
+                            ..
+                        } = event
+                        {
+                            let app = tray.app_handle();
+                            if let Some(window) = app.webview_windows().values().next() {
+                                if window.is_visible().unwrap_or(false) {
+                                    let _ = window.hide();
+                                } else {
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                }
+                            }
+                        }
+                    })
+                    .build(app)?;
+            }
 
             Ok(())
         })

@@ -82,7 +82,14 @@ onMounted(refresh);
 <template>
   <v-container class="mcp-page py-6" style="max-width: 840px">
     <div class="mcp-header d-flex align-center ga-2 mb-4 flex-wrap">
-      <v-btn class="d-md-none" icon="mdi-arrow-left" variant="text" @click="router.push('/settings')" />
+      <button
+        type="button"
+        class="settings-mobile-back"
+        :aria-label="t('common.back')"
+        @click="router.push('/settings')"
+      >
+        <v-icon icon="mdi-arrow-left" size="22" />
+      </button>
       <div class="flex-grow-1" style="min-width: 0">
         <div class="mcp-title text-h5 mb-1">{{ t("mcp.title") }}</div>
         <div class="mcp-desc text-body-2 text-medium-emphasis">{{ t("mcp.desc") }}</div>

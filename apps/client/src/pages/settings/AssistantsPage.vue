@@ -65,12 +65,14 @@ function saveRole() {
   <div class="assistants-page">
     <div class="assistants-inner">
       <header class="assistants-header">
-        <v-btn
-          class="d-md-none assistants-back"
-          icon="mdi-arrow-left"
-          variant="text"
+        <button
+          type="button"
+          class="settings-mobile-back"
+          :aria-label="t('common.back')"
           @click="router.push('/settings')"
-        />
+        >
+          <v-icon icon="mdi-arrow-left" size="22" />
+        </button>
         <div class="assistants-header-text">
           <h1 class="assistants-title">{{ t("assistants.title") }}</h1>
           <p class="assistants-desc">{{ t("assistants.desc") }}</p>

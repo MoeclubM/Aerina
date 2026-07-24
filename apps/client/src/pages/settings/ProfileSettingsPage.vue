@@ -112,12 +112,14 @@ onMounted(() => {
   <div class="profile-settings-page">
     <div class="profile-settings-inner">
       <header class="profile-settings-header">
-        <v-btn
-          class="d-md-none profile-settings-back"
-          icon="mdi-arrow-left"
-          variant="text"
+        <button
+          type="button"
+          class="settings-mobile-back"
+          :aria-label="t('common.back')"
           @click="router.push('/settings')"
-        />
+        >
+          <v-icon icon="mdi-arrow-left" size="22" />
+        </button>
         <div class="profile-settings-header-text">
           <h1 class="profile-settings-title">{{ t("profileSettings.title") }}</h1>
           <p class="profile-settings-desc">{{ t("profileSettings.desc") }}</p>
