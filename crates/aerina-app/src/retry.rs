@@ -140,6 +140,8 @@ impl AppState {
         };
 
         let cancel = CancellationToken::new();
+        candidate.status = CandidateStatus::Streaming;
+        self.inner.db.update_candidate(&candidate).await?;
         {
             let mut jobs = self.inner.active_jobs.lock().await;
             jobs.insert(conversation_id.to_string(), cancel.clone());
@@ -202,6 +204,23 @@ impl AppState {
                 payload: serde_json::json!({ "error": message }),
             });
             self.inner.db.insert_analytics_event(&failed).await?;
+            if let Some(usage) = usage {
+                self.inner
+                    .db
+                    .insert_usage(&UsageRecord {
+                        candidate_id: candidate.id,
+                        prompt_tokens: usage.prompt_tokens,
+                        completion_tokens: usage.completion_tokens,
+                        output_tokens: usage.output_tokens,
+                        total_tokens: usage.total_tokens,
+                        cost_usd: usage.cost_usd,
+                        latency_ms: usage.latency_ms,
+                        ttft_ms: usage.ttft_ms,
+                        reasoning_tokens: usage.reasoning_tokens,
+                        reasoning_duration_ms: usage.reasoning_duration_ms,
+                    })
+                    .await?;
+            }
             return self.get_conversation_ui(conversation_id).await;
         }
 
@@ -269,6 +288,7 @@ impl AppState {
             blocks.push(ContentBlock::UsageMeta {
                 prompt_tokens: usage.prompt_tokens,
                 completion_tokens: usage.completion_tokens,
+                output_tokens: usage.output_tokens,
                 total_tokens: usage.total_tokens,
                 cost_usd: usage.cost_usd,
                 latency_ms: usage.latency_ms,
@@ -280,10 +300,13 @@ impl AppState {
                     candidate_id: candidate.id,
                     prompt_tokens: usage.prompt_tokens,
                     completion_tokens: usage.completion_tokens,
+                    output_tokens: usage.output_tokens,
                     total_tokens: usage.total_tokens,
                     cost_usd: usage.cost_usd,
                     latency_ms: usage.latency_ms,
                     ttft_ms: usage.ttft_ms,
+                    reasoning_tokens: usage.reasoning_tokens,
+                    reasoning_duration_ms: usage.reasoning_duration_ms,
                 })
                 .await?;
         }

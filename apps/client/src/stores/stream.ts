@@ -5,9 +5,18 @@ import type { UsageReport } from "../api";
 export interface StreamCandidate {
   candidateId: string;
   slotLabel: string;
+  modelPresetId?: string;
+  modelName?: string;
+  status?: "pending" | "streaming" | "completed" | "failed" | "cancelled";
   text: string;
   thinking: string;
   done: boolean;
+  promptTokens?: number;
+  completionTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  latencyMs?: number;
+  ttftMs?: number;
   reasoningTokens?: number;
   reasoningDurationMs?: number;
   error?: string;
@@ -76,16 +85,38 @@ export const useStreamStore = defineStore("stream", () => {
     byCandidate.value = {};
   }
 
-  function streamStart(candidateId: string, slotLabel: string) {
+  function applyCandidateStatus(
+    candidateId: string,
+    slotLabel: string,
+    modelPresetId: string,
+    modelName: string,
+    status: "pending" | "streaming" | "completed" | "failed" | "cancelled",
+  ) {
     flushPending();
+    const cur = ensure(candidateId, slotLabel);
     byCandidate.value = {
       ...byCandidate.value,
       [candidateId]: {
-        candidateId,
+        ...cur,
         slotLabel,
-        text: byCandidate.value[candidateId]?.text ?? "",
-        thinking: byCandidate.value[candidateId]?.thinking ?? "",
+        modelPresetId,
+        modelName,
+        status,
+        done: status === "completed" || status === "failed" || status === "cancelled",
+      },
+    };
+  }
+
+  function streamStart(candidateId: string, slotLabel: string) {
+    flushPending();
+    const cur = ensure(candidateId, slotLabel);
+    byCandidate.value = {
+      ...byCandidate.value,
+      [candidateId]: {
+        ...cur,
+        slotLabel,
         done: false,
+        status: "streaming",
       },
     };
   }
@@ -122,6 +153,12 @@ export const useStreamStore = defineStore("stream", () => {
       ...byCandidate.value,
       [candidateId]: {
         ...cur,
+        promptTokens: usage.prompt_tokens,
+        completionTokens: usage.completion_tokens,
+        outputTokens: usage.output_tokens,
+        totalTokens: usage.total_tokens,
+        latencyMs: usage.latency_ms,
+        ttftMs: usage.ttft_ms,
         reasoningTokens: usage.reasoning_tokens,
         reasoningDurationMs: usage.reasoning_duration_ms,
       },
@@ -134,18 +171,24 @@ export const useStreamStore = defineStore("stream", () => {
     if (!cur) return;
     byCandidate.value = {
       ...byCandidate.value,
-      [candidateId]: { ...cur, done: true },
+      [candidateId]: { ...cur, done: true, status: "completed" },
     };
   }
 
   function markError(candidateId: string, message: string) {
     flushPending();
     const cur = ensure(candidateId);
+    const cancelled = message === "cancelled";
     byCandidate.value = {
       ...byCandidate.value,
-      [candidateId]: { ...cur, done: true, error: message },
+      [candidateId]: {
+        ...cur,
+        done: true,
+        status: cancelled ? "cancelled" : "failed",
+        error: cancelled ? undefined : message,
+      },
     };
-    error.value = message;
+    if (!cancelled) error.value = message;
   }
 
   function finish() {
@@ -184,6 +227,7 @@ export const useStreamStore = defineStore("stream", () => {
     candidates,
     combinedText,
     begin,
+    applyCandidateStatus,
     streamStart,
     appendDelta,
     appendThinking,

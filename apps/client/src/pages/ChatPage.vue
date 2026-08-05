@@ -16,10 +16,11 @@ import {
   type MessageView,
   type ModelPreset,
   type SessionInfo,
+  type UsageReport,
 } from "../api";
 import { buildTimeline, imagesOf, textOf, thinkingMetaOf, thinkingOf, usageOf } from "../composables/useMessageTimeline";
 import ThinkingBlock from "../components/ThinkingBlock.vue";
-import { useStreamStore } from "../stores/stream";
+import { useStreamStore, type StreamCandidate } from "../stores/stream";
 import { useRoleStore } from "../stores/roles";
 
 const props = withDefaults(defineProps<{ active?: boolean }>(), { active: true });
@@ -35,35 +36,55 @@ const mobile = computed(() => windowWidth.value < 680);
 const stream = useStreamStore();
 const roleStore = useRoleStore();
 
-function formatUsageMeta(obj: {
+type UsageView = {
   tokens?: number;
   promptTokens?: number;
   completionTokens?: number;
+  outputTokens?: number;
   cachedTokens?: number;
   latency?: number;
   ttft?: number;
-}) {
-  if (!obj) return [];
+};
+
+function usageView(report?: UsageReport | null): UsageView {
+  if (!report) return {};
+  return {
+    tokens: report.total_tokens,
+    promptTokens: report.prompt_tokens,
+    completionTokens: report.completion_tokens,
+    outputTokens: report.output_tokens ?? report.completion_tokens,
+    latency: report.latency_ms,
+    ttft: report.ttft_ms,
+  };
+}
+
+function thinkingDuration(durationMs?: number, usage?: UsageReport | null) {
+  if (durationMs == null) return undefined;
+  if (durationMs > 1) return durationMs;
+  return usage?.ttft_ms ?? usage?.latency_ms;
+}
+
+function formatUsageMeta(obj: UsageView) {
   const parts: Array<{ label: string; value: string }> = [];
 
   if (obj.promptTokens != null) {
-    parts.push({ label: "输入", value: obj.promptTokens.toLocaleString() });
+    parts.push({ label: t("chat.usageInput"), value: obj.promptTokens.toLocaleString() });
   }
-  if (obj.completionTokens != null) {
-    parts.push({ label: "输出", value: obj.completionTokens.toLocaleString() });
+  if (obj.outputTokens != null) {
+    parts.push({ label: t("chat.usageOutput"), value: obj.outputTokens.toLocaleString() });
   }
   if (obj.cachedTokens != null) {
-    parts.push({ label: "缓存", value: obj.cachedTokens.toLocaleString() });
+    parts.push({ label: t("chat.usageCached"), value: obj.cachedTokens.toLocaleString() });
   }
   if (obj.ttft != null) {
-    parts.push({ label: "首字", value: `${obj.ttft}ms` });
+    const value = obj.ttft < 1000 ? `${obj.ttft}ms` : `${(obj.ttft / 1000).toFixed(1)}s`;
+    parts.push({ label: t("chat.usageFirstToken"), value });
   }
   if (obj.latency != null) {
-    const sec = obj.latency < 1000 ? `${obj.latency}ms` : `${(obj.latency / 1000).toFixed(1)}s`;
-    parts.push({ label: "总用时", value: sec });
+    const value = obj.latency < 1000 ? `${obj.latency}ms` : `${(obj.latency / 1000).toFixed(1)}s`;
+    parts.push({ label: t("chat.usageTotalTime"), value });
   }
 
-  // Fallback if detailed tokens are not present
   if (!parts.length && obj.tokens != null) {
     parts.push({ label: "Token", value: `${obj.tokens.toLocaleString()} tok` });
   }
@@ -71,10 +92,59 @@ function formatUsageMeta(obj: {
   return parts;
 }
 
-function hasUsageInfo(obj: any) {
-  if (!obj) return false;
-  return obj.tokens != null || obj.promptTokens != null || obj.latency != null || obj.ttft != null;
+function hasUsageInfo(obj?: UsageView) {
+  return Boolean(
+    obj &&
+      (obj.tokens != null ||
+        obj.promptTokens != null ||
+        obj.outputTokens != null ||
+        obj.completionTokens != null ||
+        obj.latency != null ||
+        obj.ttft != null),
+  );
 }
+
+function streamUsageView(candidate?: StreamCandidate): UsageView {
+  if (!candidate) return {};
+  return {
+    tokens: candidate.totalTokens,
+    promptTokens: candidate.promptTokens,
+    completionTokens: candidate.completionTokens,
+    outputTokens: candidate.outputTokens ?? candidate.completionTokens,
+    latency: candidate.latencyMs,
+    ttft: candidate.ttftMs,
+  };
+}
+
+const streamRoundUsage = computed<UsageView>(() => {
+  const candidates = stream.candidates.filter((candidate) => hasUsageInfo(streamUsageView(candidate)));
+  if (!candidates.length) return {};
+  const sum = (values: Array<number | undefined>) => {
+    const present = values.filter((value): value is number => value != null);
+    return present.length ? present.reduce((total, value) => total + value, 0) : undefined;
+  };
+  const latencies = candidates.map((candidate) => candidate.latencyMs).filter((value): value is number => value != null);
+  const firstTokens = candidates.map((candidate) => candidate.ttftMs).filter((value): value is number => value != null);
+  return {
+    tokens: sum(candidates.map((candidate) => candidate.totalTokens)),
+    promptTokens: sum(candidates.map((candidate) => candidate.promptTokens)),
+    completionTokens: sum(candidates.map((candidate) => candidate.completionTokens)),
+    outputTokens: sum(candidates.map((candidate) => candidate.outputTokens ?? candidate.completionTokens)),
+    latency: latencies.length ? Math.max(...latencies) : undefined,
+    ttft: firstTokens.length ? Math.min(...firstTokens) : undefined,
+  };
+});
+
+function streamStatusLabel(candidate?: StreamCandidate) {
+  if (!candidate) return t("chat.connecting");
+  if (candidate.error || candidate.status === "failed") return t("chat.generationFailed");
+  if (candidate.status === "cancelled") return t("chat.generationCancelled");
+  if (candidate.done || candidate.status === "completed") return t("chat.generationCompleted");
+  if (candidate.thinking && !candidate.text) return t("chat.reasoning");
+  if (candidate.text) return t("chat.generating");
+  return t("chat.connecting");
+}
+
 
 const session = ref<SessionInfo | null>(null);
 const mobileCandidateIndex = ref(0);
@@ -103,7 +173,7 @@ const convFilter = ref("");
 const pinBottom = ref(true);
 const settingsOpen = ref(false);
 const modelMenu = ref(false);
-const modeMenu = ref(false);
+const composerTextarea = ref<HTMLTextAreaElement | null>(null);
 const parentRef = ref<HTMLElement | null>(null);
 const importInput = ref<HTMLInputElement | null>(null);
 let unlisten: (() => void) | undefined;
@@ -128,13 +198,19 @@ type CandView = {
   selected: boolean;
   thinkingTokens?: number;
   thinkingDurationMs?: number;
+  tokens?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  outputTokens?: number;
+  latency?: number;
+  ttft?: number;
 };
 
 type ViewRow =
   | { kind: "user"; key: string; messageId: string; text: string; cacheKey: string; imageIds: string[] }
   | { kind: "pending_user"; key: string; text: string; imageUrls: string[] }
-  | { kind: "assistant"; key: string; messageId: string; text: string; thinking: string; cacheKey: string; imageIds: string[]; tokens?: number; promptTokens?: number; completionTokens?: number; cachedTokens?: number; latency?: number; ttft?: number; thinkingTokens?: number; thinkingDurationMs?: number }
-  | { kind: "round"; key: string; selectedCandidateId?: string | null; candidates: CandView[] }
+  | { kind: "assistant"; key: string; messageId: string; text: string; thinking: string; cacheKey: string; imageIds: string[]; tokens?: number; promptTokens?: number; completionTokens?: number; outputTokens?: number; cachedTokens?: number; latency?: number; ttft?: number; thinkingTokens?: number; thinkingDurationMs?: number }
+  | { kind: "round"; key: string; selectedCandidateId?: string | null; usage: UsageView; candidates: CandView[] }
   | { kind: "streaming"; key: string }
   | { kind: "error"; key: string; message: string };
 
@@ -151,10 +227,19 @@ const selectedByRound = computed(() => {
 });
 
 const candidateMeta = computed(() => {
-  const map = new Map<string, { modelName: string; slot: string }>();
-  for (const c of detail.value?.candidates ?? []) {
-    map.set(c.id, { modelName: c.model_name, slot: c.slot_label });
+  const map = new Map<string, { modelName: string; slot: string; usage?: UsageReport | null }>();
+  for (const candidate of detail.value?.candidates ?? []) {
+    map.set(candidate.id, {
+      modelName: candidate.model_name,
+      slot: candidate.slot_label,
+      usage: candidate.usage,
+    });
   }
+  return map;
+});
+
+const roundMeta = computed(() => {
+  const map = new Map((detail.value?.rounds ?? []).map((round) => [round.id, round]));
   return map;
 });
 
@@ -187,11 +272,12 @@ const rows = computed<ViewRow[]>(() => {
         tokens: usage?.total_tokens,
         promptTokens: usage?.prompt_tokens,
         completionTokens: usage?.completion_tokens,
+        outputTokens: usage?.output_tokens ?? usage?.completion_tokens,
         cachedTokens: usage?.cached_prompt_tokens,
         latency: usage?.latency_ms,
         ttft: usage?.ttft_ms,
         thinkingTokens: tmeta.tokens,
-        thinkingDurationMs: tmeta.durationMs,
+        thinkingDurationMs: thinkingDuration(tmeta.durationMs, usage),
       });
     } else {
       const selectedIdCand = item.selectedCandidateId ?? null;
@@ -199,6 +285,7 @@ const rows = computed<ViewRow[]>(() => {
         kind: "round",
         key: item.key,
         selectedCandidateId: selectedIdCand,
+        usage: usageView(item.roundId ? roundMeta.value.get(item.roundId)?.usage : undefined),
         candidates: item.messages.map((m, idx) => {
           const text = textOf(m);
           const thinking = thinkingOf(m);
@@ -206,6 +293,7 @@ const rows = computed<ViewRow[]>(() => {
           const letter = String.fromCharCode(65 + idx);
           const cid = m.message.candidate_id ?? "";
           const meta = cid ? candidateMeta.value.get(cid) : undefined;
+          const usage = meta?.usage ?? usageOf(m);
           const label = meta?.modelName || `${t("chat.candidate")} ${letter}`;
           return {
             messageId: m.message.id,
@@ -217,8 +305,14 @@ const rows = computed<ViewRow[]>(() => {
             letter: meta?.slot || letter,
             modelName: meta?.modelName,
             selected: !!selectedIdCand && cid === selectedIdCand,
-            thinkingTokens: tmeta.tokens,
-            thinkingDurationMs: tmeta.durationMs,
+            thinkingTokens: tmeta.tokens ?? usage?.reasoning_tokens,
+            thinkingDurationMs: thinkingDuration(tmeta.durationMs ?? usage?.reasoning_duration_ms, usage),
+            tokens: usage?.total_tokens,
+            promptTokens: usage?.prompt_tokens,
+            completionTokens: usage?.completion_tokens,
+            outputTokens: usage?.output_tokens ?? usage?.completion_tokens,
+            latency: usage?.latency_ms,
+            ttft: usage?.ttft_ms,
           };
         }),
       });
@@ -354,10 +448,15 @@ async function loadSession() {
   session.value = await api.sessionInfo();
 }
 
+async function refreshPresets() {
+  presets.value = await api.listModelPresets();
+}
+
 watch(
   () => props.active,
   (active) => {
-    if (active) void loadSession();
+    if (!active) return;
+    void Promise.all([loadSession(), refreshPresets()]).then(() => refreshDetail());
   },
 );
 
@@ -376,7 +475,7 @@ async function onSessionChanged() {
   session.value = await api.sessionInfo();
   selectedId.value = null;
   detail.value = null;
-  presets.value = await api.listModelPresets();
+  await refreshPresets();
   await refreshConversations();
   await refreshDetail();
 }
@@ -418,7 +517,10 @@ async function refreshDetail() {
   temperature.value = page.settings.temperature ?? 0.7;
   selectedRoleId.value = roleStore.convRoles[page.conversation.id] || roleStore.defaultRoleId;
   titleDraft.value = page.conversation.title;
-  selectedModels.value = [...(page.settings.model_preset_ids ?? [])];
+  const availablePresetIds = new Set(presets.value.map((preset) => preset.id));
+  selectedModels.value = (page.settings.model_preset_ids ?? []).filter((id) =>
+    availablePresetIds.has(id),
+  );
   mobileCandidateIndex.value = 0;
   collectMedia(page.messages);
   await nextTick();
@@ -678,11 +780,13 @@ async function saveSettings() {
   await refreshConversations();
 }
 
-function autoGrowComposer(e?: Event) {
-  const el = (e?.target as HTMLTextAreaElement | undefined) ?? (document.querySelector(".composer-textarea") as HTMLTextAreaElement | null);
+function autoGrowComposer(event?: Event) {
+  const el = (event?.currentTarget as HTMLTextAreaElement | null) ?? composerTextarea.value;
   if (!el) return;
-  el.style.height = "auto";
-  el.style.height = Math.min(el.scrollHeight, 180) + "px";
+  el.style.height = "0px";
+  const height = Math.min(Math.max(el.scrollHeight, 32), 168);
+  el.style.height = `${height}px`;
+  el.style.overflowY = el.scrollHeight > 168 ? "auto" : "hidden";
 }
 
 async function send() {
@@ -693,7 +797,8 @@ async function send() {
   const content = draft.value.trim();
   const imgs = [...attachments.value];
   draft.value = "";
-  requestAnimationFrame(() => autoGrowComposer());
+  await nextTick();
+  autoGrowComposer();
   attachments.value = [];
   pendingUser.value = { text: content, imageUrls: imgs };
   stream.begin(selectedId.value);
@@ -743,7 +848,6 @@ async function saveEdit(messageId: string) {
 async function stopGeneration() {
   if (!selectedId.value) return;
   await api.cancelGeneration(selectedId.value);
-  stream.finish();
   error.value = null;
 }
 
@@ -802,10 +906,6 @@ function openProviderSettings() {
   void router.push("/settings/providers");
 }
 
-function openAgentEntry() {
-  modeMenu.value = false;
-  window.dispatchEvent(new CustomEvent("aerina:open-agent-entry"));
-}
 
 async function onPickFiles(files: FileList | File[] | null) {
   if (!files) return;
@@ -915,7 +1015,15 @@ async function setupListener() {
   unlisten = await api.listenGeneration((payload) => {
     if (payload.conversationId !== stream.conversationId) return;
     const event = payload.event;
-    if (event.type === "stream_start") stream.streamStart(event.candidate_id, event.slot_label);
+    if (event.type === "candidate_status") {
+      stream.applyCandidateStatus(
+        event.candidate_id,
+        event.slot_label,
+        event.model_preset_id,
+        event.model_name,
+        event.status,
+      );
+    } else if (event.type === "stream_start") stream.streamStart(event.candidate_id, event.slot_label);
     else if (event.type === "text_delta") stream.appendDelta(event.candidate_id, event.delta);
     else if (event.type === "thinking_delta") stream.appendThinking(event.candidate_id, event.delta);
     else if (event.type === "usage") stream.applyUsage(event.candidate_id, event.usage);
@@ -929,7 +1037,7 @@ onMounted(async () => {
   window.addEventListener("aerina:session-changed", onSessionChanged);
   window.addEventListener("resize", handleResize);
   await loadSession();
-  presets.value = await api.listModelPresets();
+  await refreshPresets();
   await refreshConversations();
   await refreshDetail();
   await setupListener();
@@ -972,7 +1080,7 @@ onUnmounted(() => {
 
 <template>
   <div class="chat-root" :class="{ mobile, 'sidebar-hidden': mobile && !showList && selectedId }">
-    <!-- Desktop Permanent Unified Glass Sidebar -->
+    <!-- Desktop permanent Miuix-style sidebar -->
     <ConversationSidebar
       v-if="!mobile"
       :conversations="conversations"
@@ -1248,7 +1356,7 @@ onUnmounted(() => {
                         :duration-ms="(rowAt(vItem.index) as any).thinkingDurationMs"
                       />
                       <MarkdownView :text="(rowAt(vItem.index) as any).text" :cache-key="(rowAt(vItem.index) as any).cacheKey" />
-                      <div v-if="hasUsageInfo(rowAt(vItem.index))" class="usage-line">
+                      <div v-if="hasUsageInfo(rowAt(vItem.index) as any)" class="usage-line">
                         <span v-for="(part, pIdx) in formatUsageMeta(rowAt(vItem.index) as any)" :key="pIdx" class="usage-item">
                           <span class="usage-label">{{ part.label }}</span>
                           <span class="usage-value">{{ part.value }}</span>
@@ -1261,6 +1369,13 @@ onUnmounted(() => {
                 <div v-else-if="rowAt(vItem.index)!.kind === 'round'" class="msg-row msg-assistant">
                   <div class="msg-col wide">
                     <div class="msg-meta"><span>{{ t("chat.multiModel") }}</span></div>
+                    <div v-if="hasUsageInfo((rowAt(vItem.index) as any).usage)" class="usage-line round-usage-line">
+                      <span class="usage-context">{{ t("chat.roundUsage") }}</span>
+                      <span v-for="(part, pIdx) in formatUsageMeta((rowAt(vItem.index) as any).usage)" :key="pIdx" class="usage-item">
+                        <span class="usage-label">{{ part.label }}</span>
+                        <span class="usage-value">{{ part.value }}</span>
+                      </span>
+                    </div>
                     <div class="round-grid" :class="gridClass((rowAt(vItem.index) as any).candidates.length)">
                       <div
                         v-for="cand in (rowAt(vItem.index) as any).candidates"
@@ -1299,7 +1414,22 @@ onUnmounted(() => {
 
                 <div v-else-if="rowAt(vItem.index)!.kind === 'streaming'" class="msg-row msg-assistant">
                   <div class="msg-col" :class="{ wide: stream.candidates.length > 1 }">
-                    <div class="msg-meta"><span>{{ t("chat.streaming") }}</span></div>
+                    <div class="msg-meta stream-heading">
+                      <span>{{ stream.candidates.length > 1 ? t("chat.multiModel") : t("chat.streaming") }}</span>
+                      <span v-if="stream.candidates.length === 1" class="stream-model-name">
+                        {{ stream.candidates[0]?.modelName }}
+                      </span>
+                      <span v-if="stream.candidates.length === 1" class="stream-status-pill">
+                        {{ streamStatusLabel(stream.candidates[0]) }}
+                      </span>
+                    </div>
+                    <div v-if="stream.candidates.length > 1 && hasUsageInfo(streamRoundUsage)" class="usage-line round-usage-line">
+                      <span class="usage-context">{{ t("chat.roundUsage") }}</span>
+                      <span v-for="(part, pIdx) in formatUsageMeta(streamRoundUsage)" :key="pIdx" class="usage-item">
+                        <span class="usage-label">{{ part.label }}</span>
+                        <span class="usage-value">{{ part.value }}</span>
+                      </span>
+                    </div>
                     <div v-if="stream.candidates.length <= 1" class="msg-bubble assistant-bubble">
                       <ThinkingBlock
                         :text="stream.candidates[0]?.thinking || ''"
@@ -1308,11 +1438,25 @@ onUnmounted(() => {
                         :streaming="Boolean(stream.candidates[0]?.thinking) && !stream.candidates[0]?.text && !stream.candidates[0]?.done"
                       />
                       <MarkdownView :text="stream.candidates[0]?.text || ''" streaming />
-                      <div v-if="!stream.candidates[0]?.text" class="text-medium-emphasis text-body-2">{{ t("chat.stopping") }}</div>
+                      <div v-if="!stream.candidates[0]?.text" class="stream-waiting">
+                        {{ stream.candidates[0] ? streamStatusLabel(stream.candidates[0]) : t("chat.connecting") }}
+                      </div>
+                      <div v-if="stream.candidates[0] && hasUsageInfo(streamUsageView(stream.candidates[0]))" class="usage-line">
+                        <span v-for="(part, pIdx) in formatUsageMeta(streamUsageView(stream.candidates[0]))" :key="pIdx" class="usage-item">
+                          <span class="usage-label">{{ part.label }}</span>
+                          <span class="usage-value">{{ part.value }}</span>
+                        </span>
+                      </div>
                     </div>
                     <div v-else class="round-grid" :class="gridClass(stream.candidates.length)">
                       <div v-for="cand in stream.candidates" :key="cand.candidateId" class="candidate-card">
-                        <div class="msg-meta"><span class="cand-badge">{{ cand.slotLabel }}</span></div>
+                        <div class="msg-meta stream-candidate-meta">
+                          <span class="d-inline-flex align-center ga-2 min-w-0">
+                            <span class="cand-badge">{{ cand.slotLabel }}</span>
+                            <span class="stream-model-name text-truncate">{{ cand.modelName || t("chat.candidate") }}</span>
+                          </span>
+                          <span class="stream-status-pill">{{ streamStatusLabel(cand) }}</span>
+                        </div>
                         <ThinkingBlock
                           :text="cand.thinking"
                           :tokens="cand.reasoningTokens"
@@ -1320,6 +1464,13 @@ onUnmounted(() => {
                           :streaming="Boolean(cand.thinking) && !cand.text && !cand.done"
                         />
                         <MarkdownView :text="cand.text" streaming />
+                        <div v-if="!cand.text && !cand.error" class="stream-waiting">{{ streamStatusLabel(cand) }}</div>
+                        <div v-if="hasUsageInfo(streamUsageView(cand))" class="usage-line">
+                          <span v-for="(part, pIdx) in formatUsageMeta(streamUsageView(cand))" :key="pIdx" class="usage-item">
+                            <span class="usage-label">{{ part.label }}</span>
+                            <span class="usage-value">{{ part.value }}</span>
+                          </span>
+                        </div>
                         <div v-if="cand.error" class="text-error text-caption">{{ cand.error }}</div>
                       </div>
                     </div>
@@ -1353,11 +1504,13 @@ onUnmounted(() => {
           </div>
 
           <textarea
+            ref="composerTextarea"
             v-model="draft"
             class="composer-textarea"
             rows="1"
             :placeholder="multiModel ? t('chat.multiPlaceholder') : t('chat.placeholder')"
             :disabled="!selectedId || stream.isStreaming"
+            @input="autoGrowComposer"
             @keydown.enter.exact.prevent="send"
           />
 
@@ -1414,34 +1567,6 @@ onUnmounted(() => {
                 </div>
               </v-menu>
 
-              <v-menu v-model="modeMenu" location="top start">
-                <template #activator="{ props: menuProps }">
-                  <button type="button" class="composer-mode-chip composer-mode-button" :title="t('chat.runtimeMode')" v-bind="menuProps">
-                    <v-icon icon="mdi-message-text-outline" size="15" />
-                    <span class="composer-mode-text">{{ t("chat.conversationMode") }}</span>
-                    <v-icon icon="mdi-chevron-up" size="14" class="composer-mode-chevron" />
-                  </button>
-                </template>
-                <div class="runtime-mode-menu">
-                  <div class="runtime-mode-title">{{ t("chat.runtimeMode") }}</div>
-                  <button type="button" class="runtime-mode-item active" @click="modeMenu = false">
-                    <span class="runtime-mode-icon"><v-icon icon="mdi-message-text-outline" size="17" /></span>
-                    <span class="runtime-mode-copy">
-                      <strong>{{ t("chat.conversationMode") }}</strong>
-                      <small>{{ t("chat.conversationModeHint") }}</small>
-                    </span>
-                    <v-icon icon="mdi-check" size="16" />
-                  </button>
-                  <button type="button" class="runtime-mode-item reserved" @click="openAgentEntry">
-                    <span class="runtime-mode-icon"><v-icon icon="mdi-robot-outline" size="17" /></span>
-                    <span class="runtime-mode-copy">
-                      <strong>{{ t("chat.agentMode") }}</strong>
-                      <small>{{ t("chat.agentModeHint") }}</small>
-                    </span>
-                    <span class="runtime-mode-badge">{{ t("chat.comingSoon") }}</span>
-                  </button>
-                </div>
-              </v-menu>
             </div>
 
             <div class="composer-bar-right">
@@ -1472,18 +1597,28 @@ onUnmounted(() => {
       </footer>
     </section>
     <!-- Conversation Settings Modal -->
-    <v-dialog v-model="settingsOpen" max-width="500">
-      <v-card rounded="xl">
-        <v-card-title class="pt-4 px-5 font-weight-bold">{{ t("chat.conversationSettings") }}</v-card-title>
-        <v-card-text class="px-5">
-          <div class="mb-4">
-            <div class="d-flex align-center justify-space-between ga-3 mb-1">
+    <v-dialog v-model="settingsOpen" max-width="520" content-class="conversation-settings-dialog">
+      <v-card class="conversation-settings-card">
+        <v-card-title class="conversation-settings-title">
+          <span>{{ t("chat.conversationSettings") }}</span>
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            size="small"
+            :aria-label="t('common.close')"
+            @click="settingsOpen = false"
+          />
+        </v-card-title>
+        <v-card-text class="conversation-settings-body">
+          <div class="conversation-settings-field">
+            <div class="conversation-settings-label-row">
               <label class="compact-field-label">{{ t("chat.assistantRole") }}</label>
-              <v-btn size="x-small" variant="text" prepend-icon="mdi-account-cog-outline" @click="router.push('/settings/assistants'); settingsOpen = false">
+              <v-btn class="conversation-settings-manage" size="x-small" variant="text" prepend-icon="mdi-account-cog-outline" @click="router.push('/settings/assistants'); settingsOpen = false">
                 {{ t("chat.manageAssistants") }}
               </v-btn>
             </div>
             <v-select
+              class="conversation-settings-select"
               :model-value="selectedRoleId"
               :items="roleStore.roles"
               item-title="name"
@@ -1493,19 +1628,18 @@ onUnmounted(() => {
               hide-details
               @update:model-value="applyConversationRole"
             />
-            <div class="settings-field-hint mt-1">{{ t("chat.assistantRoleHint") }}</div>
+            <div class="settings-field-hint">{{ t("chat.assistantRoleHint") }}</div>
           </div>
-          <div class="mb-4">
-            <label class="compact-field-label mb-1">{{ t("chat.temperature") }}: {{ temperature }}</label>
-            <v-slider v-model="temperature" :min="0" :max="2" :step="0.1" thumb-label color="primary" hide-details />
+          <div class="conversation-settings-field">
+            <label class="compact-field-label">{{ t("chat.temperature") }}: {{ temperature }}</label>
+            <v-slider class="conversation-settings-slider" v-model="temperature" :min="0" :max="2" :step="0.1" thumb-label color="primary" hide-details />
           </div>
-          <div>
-            <label class="compact-field-label mb-1">{{ t("chat.systemPrompt") }}</label>
-            <textarea v-model="systemPrompt" class="settings-input" rows="3" style="height:auto;padding:8px 12px;" />
+          <div class="conversation-settings-field">
+            <label class="compact-field-label">{{ t("chat.systemPrompt") }}</label>
+            <textarea v-model="systemPrompt" class="settings-input conversation-settings-textarea" rows="4" />
           </div>
         </v-card-text>
-        <v-card-actions class="px-5 pb-4">
-          <v-spacer />
+        <v-card-actions class="conversation-settings-actions">
           <v-btn variant="text" @click="settingsOpen = false">{{ t("common.cancel") }}</v-btn>
           <v-btn color="primary" @click="saveSettings">{{ t("common.save") }}</v-btn>
         </v-card-actions>

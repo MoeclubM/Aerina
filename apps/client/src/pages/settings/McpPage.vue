@@ -80,7 +80,7 @@ onMounted(refresh);
 </script>
 
 <template>
-  <v-container class="mcp-page py-6" style="max-width: 840px">
+  <v-container class="settings-page mcp-page">
     <div class="mcp-header d-flex align-center ga-2 mb-4 flex-wrap">
       <button
         type="button"
@@ -94,14 +94,14 @@ onMounted(refresh);
         <div class="mcp-title text-h5 mb-1">{{ t("mcp.title") }}</div>
         <div class="mcp-desc text-body-2 text-medium-emphasis">{{ t("mcp.desc") }}</div>
       </div>
-      <v-btn variant="tonal" prepend-icon="mdi-wrench" @click="listTools">{{ t("mcp.listTools") }}</v-btn>
+      <v-btn color="primary" variant="tonal" prepend-icon="mdi-wrench" @click="listTools">{{ t("mcp.listTools") }}</v-btn>
       <v-btn color="primary" prepend-icon="mdi-plus" @click="showForm = !showForm">{{ t("mcp.add") }}</v-btn>
     </div>
 
     <v-alert v-if="error" type="error" variant="tonal" class="mb-4" :text="error" />
 
     <v-expand-transition>
-      <v-card v-if="showForm" class="mb-4" variant="tonal">
+      <v-card v-if="showForm" class="settings-panel mb-4">
         <v-card-text class="d-flex flex-column ga-3">
           <v-text-field v-model="form.name" :label="t('mcp.name')" />
           <v-select
@@ -124,7 +124,7 @@ onMounted(refresh);
       </v-card>
     </v-expand-transition>
 
-    <v-card v-if="tools.length" class="mb-4" variant="tonal">
+    <v-card v-if="tools.length" class="settings-panel mb-4">
       <v-card-title class="text-subtitle-1">{{ t("common.tools") }} ({{ tools.length }})</v-card-title>
       <v-list density="compact">
         <v-list-item
@@ -136,15 +136,13 @@ onMounted(refresh);
       </v-list>
     </v-card>
 
-    <v-list lines="three" class="bg-transparent">
+    <v-list lines="three" class="mcp-server-list bg-transparent">
       <v-list-item
         v-for="server in servers"
         :key="server.id"
         :title="server.name"
         :subtitle="`${server.transport} · ${server.url}`"
-        border
-        rounded="lg"
-        class="mb-2"
+        class="mcp-server-item mb-2"
       >
         <template #append>
           <v-btn icon="mdi-connection" variant="text" :title="t('common.test')" @click="test(server.id)" />
@@ -161,21 +159,66 @@ onMounted(refresh);
 </template>
 
 <style scoped>
+.mcp-page {
+  width: 100%;
+  max-width: 840px;
+  height: 100%;
+  margin: 0 auto;
+  padding: 20px 20px 40px !important;
+  box-sizing: border-box;
+  overflow: auto;
+}
+.settings-panel {
+  overflow: hidden;
+  border: 0;
+  border-radius: 16px !important;
+  background: var(--miuix-surface-container) !important;
+  box-shadow: none !important;
+}
+.mcp-server-list {
+  display: grid;
+  gap: 8px;
+}
+.mcp-page :deep(.mcp-server-item) {
+  min-width: 0;
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: var(--miuix-surface-container);
+}
+.mcp-page :deep(.mcp-server-item:hover) {
+  background: color-mix(in srgb, var(--miuix-surface-container) 94%, var(--miuix-on-container) 6%);
+}
+.mcp-page :deep(.v-list-item-subtitle) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 679px) {
   .mcp-page {
     padding-top: 18px !important;
-    padding-inline: 12px !important;
+    padding-inline: 14px !important;
   }
   .mcp-header {
+    display: grid !important;
+    grid-template-columns: 40px minmax(0, 1fr);
     align-items: center !important;
+    gap: 8px 10px !important;
     margin-bottom: 14px !important;
   }
   .mcp-title {
-    display: none;
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 1.15rem !important;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .mcp-desc {
-    font-size: 0.78rem !important;
-    line-height: 1.4;
+    display: none;
+  }
+  .mcp-header > .v-btn {
+    grid-column: 1 / -1;
+    width: 100%;
   }
 }
 </style>

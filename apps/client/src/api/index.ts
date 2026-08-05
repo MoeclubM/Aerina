@@ -72,6 +72,7 @@ export interface ContentBlock {
   revised_prompt?: string;
   prompt_tokens?: number;
   completion_tokens?: number;
+  output_tokens?: number;
   total_tokens?: number;
   cached_prompt_tokens?: number;
   latency_ms?: number;
@@ -84,6 +85,7 @@ export interface ContentBlock {
 export interface UsageReport {
   prompt_tokens?: number;
   completion_tokens?: number;
+  output_tokens?: number;
   total_tokens?: number;
   cost_usd?: number;
   latency_ms?: number;
@@ -132,11 +134,15 @@ export interface CandidateInfo {
   slot_label: string;
   model_name: string;
   model_preset_id: string;
+  status: "pending" | "streaming" | "completed" | "failed" | "cancelled";
+  error_message?: string | null;
+  usage?: UsageReport | null;
 }
 
 export interface RoundInfo {
   id: string;
   selected_candidate_id?: string | null;
+  usage?: UsageReport | null;
 }
 
 export interface ConversationDetail {
@@ -252,6 +258,14 @@ export interface GenerationEventPayload {
   conversationId: string;
   event:
     | { type: "stream_start"; candidate_id: string; slot_label: string }
+    | {
+        type: "candidate_status";
+        candidate_id: string;
+        slot_label: string;
+        model_preset_id: string;
+        model_name: string;
+        status: "pending" | "streaming" | "completed" | "failed" | "cancelled";
+      }
     | { type: "text_delta"; candidate_id: string; delta: string }
     | { type: "thinking_delta"; candidate_id: string; delta: string }
     | { type: "usage"; candidate_id: string; usage: UsageReport }

@@ -121,10 +121,13 @@ pub struct UsageRecord {
     pub candidate_id: CandidateId,
     pub prompt_tokens: Option<u32>,
     pub completion_tokens: Option<u32>,
+    pub output_tokens: Option<u32>,
     pub total_tokens: Option<u32>,
     pub cost_usd: Option<f64>,
     pub latency_ms: Option<u64>,
     pub ttft_ms: Option<u64>,
+    pub reasoning_tokens: Option<u32>,
+    pub reasoning_duration_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

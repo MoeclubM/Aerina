@@ -98,10 +98,12 @@ pub struct GeneratedImage {
     pub revised_prompt: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct UsageReport {
     pub prompt_tokens: Option<u32>,
     pub completion_tokens: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_tokens: Option<u32>,
     pub total_tokens: Option<u32>,
     pub cost_usd: Option<f64>,
     pub latency_ms: Option<u64>,
@@ -118,6 +120,13 @@ pub enum GenerationEvent {
     StreamStart {
         candidate_id: String,
         slot_label: String,
+    },
+    CandidateStatus {
+        candidate_id: String,
+        slot_label: String,
+        model_preset_id: String,
+        model_name: String,
+        status: crate::CandidateStatus,
     },
     TextDelta {
         candidate_id: String,

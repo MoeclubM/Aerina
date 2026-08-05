@@ -109,7 +109,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="profile-settings-page">
+  <div class="profile-settings-page settings-page">
     <div class="profile-settings-inner">
       <header class="profile-settings-header">
         <button
@@ -241,14 +241,14 @@ onMounted(() => {
 
 .settings-surface {
   min-width: 0;
-  border-radius: 18px;
-  border: 1px solid rgba(var(--v-border-color), 0.4);
-  background: var(--aerina-material);
-  backdrop-filter: blur(20px) saturate(165%);
-  -webkit-backdrop-filter: blur(20px) saturate(165%);
+  border-radius: 16px;
+  border: 0;
+  background: var(--miuix-surface-container);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   padding: 18px 18px 16px;
   box-sizing: border-box;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  box-shadow: none;
 }
 .section-head {
   margin-bottom: 16px;
@@ -296,7 +296,7 @@ onMounted(() => {
   transition: transform 100ms ease-out;
 }
 .avatar-pick:active:not(:disabled) {
-  transform: scale(0.97);
+  background: color-mix(in srgb, var(--miuix-secondary-container) 90%, var(--miuix-on-container) 10%);
 }
 .avatar-pick:disabled {
   opacity: 0.7;
@@ -343,22 +343,21 @@ onMounted(() => {
 .field-input {
   width: 100%;
   min-width: 0;
-  height: 42px;
+  height: var(--aerina-control-height);
   box-sizing: border-box;
-  border-radius: 12px;
-  border: 1px solid rgba(var(--v-border-color), 0.55);
-  background: rgba(var(--v-theme-on-surface), 0.05);
+  border-radius: var(--aerina-control-radius);
+  border: 0;
+  background: var(--miuix-secondary-container);
   color: rgb(var(--v-theme-on-surface));
-  padding: 0 12px;
+  padding: 0 16px;
   font: inherit;
   font-size: 0.95rem;
   outline: none;
   transition: border-color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease;
 }
 .field-input:focus {
-  border-color: rgba(var(--v-theme-primary), 0.7);
-  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.18);
-  background: rgba(var(--v-theme-on-surface), 0.03);
+  box-shadow: inset 0 0 0 2px rgb(var(--v-theme-primary));
+  background: var(--miuix-secondary-container);
 }
 .profile-actions {
   display: flex;
@@ -377,17 +376,17 @@ onMounted(() => {
   font-size: 0.84rem;
   font-weight: 600;
   letter-spacing: 0;
-  border-radius: 10px;
-  min-height: 34px;
-  padding: 7px 12px;
+  border-radius: var(--aerina-control-radius);
+  min-height: var(--aerina-control-height);
+  padding: 0 16px;
   line-height: 1.2;
   overflow-wrap: anywhere;
-  transition: transform 100ms ease-out, opacity 0.12s ease, background 0.14s ease;
+  transition: opacity 0.12s ease, background var(--aerina-spring);
 }
 .btn-primary:active:not(:disabled),
 .btn-secondary:active:not(:disabled),
 .btn-ghost:active:not(:disabled) {
-  transform: scale(0.97);
+  background: color-mix(in srgb, var(--miuix-secondary-container) 90%, var(--miuix-on-container) 10%);
 }
 .btn-primary:disabled,
 .btn-secondary:disabled,
@@ -400,13 +399,13 @@ onMounted(() => {
   color: rgb(var(--v-theme-on-primary));
 }
 .btn-secondary {
-  background: rgba(var(--v-theme-primary), 0.14);
-  color: rgb(var(--v-theme-primary));
+  background: var(--miuix-secondary-container);
+  color: rgb(var(--v-theme-on-surface));
 }
 .btn-ghost {
-  background: transparent;
-  color: rgb(var(--v-theme-primary));
-  padding-inline: 8px;
+  background: var(--miuix-secondary-container);
+  color: rgb(var(--v-theme-on-surface));
+  padding-inline: 16px;
 }
 .error-banner {
   border-radius: 12px;
@@ -421,7 +420,7 @@ onMounted(() => {
   .settings-surface {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    background: rgb(var(--v-theme-surface));
+    background: var(--miuix-surface-container);
   }
 }
 
@@ -438,7 +437,7 @@ onMounted(() => {
     font-size: 1.15rem;
   }
   .settings-surface {
-    border-radius: 15px;
+    border-radius: 16px;
     padding: 15px 14px 14px;
   }
 }

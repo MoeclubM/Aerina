@@ -168,6 +168,67 @@ impl Db {
         Ok(())
     }
 
+    pub async fn count_conversations_using_model_presets(
+        &self,
+        workspace_id: WorkspaceId,
+        preset_ids: &[ModelPresetId],
+    ) -> Result<u64> {
+        let mut count = 0;
+        for conversation in self.list_conversations(workspace_id).await? {
+            let Some(settings) = self.get_settings(conversation.id).await? else {
+                continue;
+            };
+            if settings
+                .model_preset_ids
+                .iter()
+                .chain(settings.candidate_pool.iter())
+                .any(|id| preset_ids.contains(id))
+            {
+                count += 1;
+            }
+        }
+        Ok(count)
+    }
+
+    pub async fn repair_missing_model_preset_references(
+        &self,
+        workspace_id: WorkspaceId,
+    ) -> Result<()> {
+        let valid_ids = self
+            .list_model_presets(workspace_id)
+            .await?
+            .into_iter()
+            .map(|preset| preset.id)
+            .collect::<Vec<_>>();
+
+        for conversation in self.list_conversations(workspace_id).await? {
+            let Some(mut settings) = self.get_settings(conversation.id).await? else {
+                continue;
+            };
+            let previous_models = settings.model_preset_ids.clone();
+            let previous_pool = settings.candidate_pool.clone();
+            let previous_slot_count = settings.slot_count;
+            settings
+                .model_preset_ids
+                .retain(|id| valid_ids.contains(id));
+            settings.candidate_pool.retain(|id| valid_ids.contains(id));
+            settings.slot_count = match settings.mode {
+                ConversationMode::Arena => settings
+                    .slot_count
+                    .min(settings.candidate_pool.len() as u32),
+                _ => settings.model_preset_ids.len() as u32,
+            };
+
+            if settings.model_preset_ids != previous_models
+                || settings.candidate_pool != previous_pool
+                || settings.slot_count != previous_slot_count
+            {
+                self.update_settings(&settings).await?;
+            }
+        }
+        Ok(())
+    }
+
     pub async fn get_branch(&self, id: BranchId) -> Result<Option<Branch>> {
         let row = sqlx::query_as::<_, BranchRow>(
             "SELECT id, conversation_id, parent_branch_id, fork_candidate_id, head_message_id, created_at

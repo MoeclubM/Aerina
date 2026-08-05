@@ -49,11 +49,20 @@ function toggle() {
   open.value = !open.value;
 }
 
+const visible = computed(() =>
+  Boolean(
+    props.text.trim() ||
+    props.streaming ||
+    (props.tokens != null && props.tokens > 0) ||
+    (props.durationMs != null && props.durationMs > 1),
+  ),
+);
+
 const metaText = computed(() => {
   const parts: string[] = [];
   let tokens = props.tokens;
   let estimated = false;
-  if (tokens == null && props.text.trim()) {
+  if ((tokens == null || tokens <= 0) && props.text.trim()) {
     const cjkCount = (props.text.match(/[\u3400-\u9fff\uf900-\ufaff]/g) || []).length;
     const otherLength = props.text.replace(/[\u3400-\u9fff\uf900-\ufaff]/g, "").trim().length;
     tokens = Math.max(1, cjkCount + Math.ceil(otherLength / 4));
@@ -63,7 +72,10 @@ const metaText = computed(() => {
     const value = tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : String(tokens);
     parts.push(`${estimated ? "≈" : ""}${value} tok`);
   }
-  const durationMs = props.durationMs ?? (props.streaming ? liveDurationMs.value : undefined);
+  const measuredDuration = props.durationMs != null && props.durationMs > 1
+    ? props.durationMs
+    : undefined;
+  const durationMs = measuredDuration ?? (props.streaming ? liveDurationMs.value : undefined);
   if (durationMs != null) {
     parts.push(durationMs >= 1000 ? `${(durationMs / 1000).toFixed(1)}s` : `${Math.round(durationMs)}ms`);
   }
@@ -72,7 +84,7 @@ const metaText = computed(() => {
 </script>
 
 <template>
-  <div v-if="text || streaming || tokens != null || durationMs != null" class="thinking">
+  <div v-if="visible" class="thinking">
     <button type="button" class="thinking-toggle" @click="toggle">
       <v-icon
         :icon="open ? 'mdi-chevron-down' : 'mdi-chevron-right'"
@@ -99,11 +111,14 @@ const metaText = computed(() => {
 .thinking-toggle {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
+  min-width: 0;
   gap: 6px;
   margin: 0;
-  padding: 4px 8px 4px 4px;
+  min-height: 40px;
+  padding: 0 12px 0 8px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 12px;
   background: transparent;
   color: rgba(var(--v-theme-on-surface), 0.55);
   font: inherit;
@@ -111,7 +126,7 @@ const metaText = computed(() => {
   font-weight: 600;
   letter-spacing: 0;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease, transform 100ms ease-out;
+  transition: background var(--aerina-spring), color var(--aerina-spring);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -121,7 +136,7 @@ const metaText = computed(() => {
 }
 
 .thinking-toggle:active {
-  transform: scale(0.98);
+  background: color-mix(in srgb, var(--miuix-surface-container) 90%, var(--miuix-on-container) 10%);
 }
 
 .thinking-toggle:focus {
@@ -148,10 +163,14 @@ const metaText = computed(() => {
 }
 
 .thinking-meta {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(var(--v-theme-on-surface), 0.42);
   font-size: 0.72rem;
   font-weight: 500;
-  color: rgba(var(--v-theme-on-surface), 0.42);
   font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .thinking-live {
@@ -177,11 +196,10 @@ const metaText = computed(() => {
 
 .thinking-panel {
   margin-top: 4px;
-  margin-left: 4px;
-  padding: 8px 12px 10px;
-  border-left: 2px solid rgba(var(--v-theme-on-surface), 0.12);
-  border-radius: 0 10px 10px 0;
-  background: rgba(var(--v-theme-on-surface), 0.03);
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--miuix-surface-container-high);
 }
 
 .thinking-body {
@@ -193,6 +211,13 @@ const metaText = computed(() => {
   line-height: 1.55;
   color: rgba(var(--v-theme-on-surface), 0.62);
   max-height: 240px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinking-live {
+    animation: none;
+  }
 }
 </style>

@@ -33,15 +33,16 @@ const { t } = useI18n();
 <style scoped>
 .agent-entry-panel {
   padding: 20px 18px calc(18px + env(safe-area-inset-bottom, 0px));
-  border-radius: 22px 22px 0 0;
-  background: rgb(var(--v-theme-surface));
+  border-radius: 32px 32px 0 0;
+  background: var(--miuix-background);
   color: rgb(var(--v-theme-on-surface));
 }
 .agent-entry-panel.desktop {
-  padding: 22px;
-  border: 1px solid rgba(var(--v-border-color), 0.34);
-  border-radius: 20px;
-  box-shadow: 0 24px 64px rgba(20, 28, 48, 0.22);
+  padding: 24px;
+  border: 0;
+  border-radius: 32px;
+  background: var(--miuix-background);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 24%);
 }
 .agent-entry-head {
   display: grid;
@@ -54,9 +55,9 @@ const { t } = useI18n();
   height: 44px;
   display: grid;
   place-items: center;
-  border-radius: 14px;
+  border-radius: 16px;
   color: rgb(var(--v-theme-primary));
-  background: rgba(var(--v-theme-primary), 0.12);
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 12%, var(--miuix-surface-container));
 }
 .agent-entry-copy {
   min-width: 0;
@@ -89,34 +90,34 @@ const { t } = useI18n();
   min-width: 0;
   min-height: 38px;
   padding: 0 8px;
-  border-radius: 11px;
+  border-radius: 16px;
   color: rgba(var(--v-theme-on-surface), 0.68);
-  background: rgba(var(--v-theme-on-surface), 0.045);
+  background: var(--miuix-surface-container-high);
   font-size: 0.7rem;
   font-weight: 620;
 }
 .agent-entry-close {
   width: 100%;
-  height: 42px;
+  height: 40px;
   margin-top: 16px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 16px;
   background: rgb(var(--v-theme-primary));
   color: rgb(var(--v-theme-on-primary));
   font: inherit;
   font-size: 0.86rem;
   font-weight: 700;
   cursor: pointer;
-  transition: filter 120ms ease, transform 100ms ease-out;
+  transition: background var(--aerina-spring), box-shadow var(--aerina-spring);
 }
 .agent-entry-close:hover,
 .agent-entry-close:focus-visible {
   outline: none;
-  filter: brightness(1.04);
-  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.2);
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 92%, rgb(var(--v-theme-on-primary)) 8%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, rgb(var(--v-theme-primary)) 32%, transparent);
 }
 .agent-entry-close:active {
-  transform: scale(0.985);
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 84%, rgb(var(--v-theme-on-primary)) 16%);
 }
 @media (max-width: 420px) {
   .agent-entry-head {

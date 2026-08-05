@@ -359,6 +359,7 @@ watch(providerId, () => {
               {{ t("providers.fetchModels") }}
             </v-btn>
             <v-btn
+              color="primary"
               variant="tonal"
               size="small"
               prepend-icon="mdi-plus"
@@ -490,7 +491,7 @@ watch(providerId, () => {
               </div>
               <div>
                 <label class="compact-field-label mb-1 d-block">{{ t('providers.capabilities') }}</label>
-                <v-chip-group v-model="modelForm.capabilities" multiple column selected-class="text-primary">
+                <v-chip-group v-model="modelForm.capabilities" multiple column selected-class="model-capability-selected">
                   <v-chip
                     v-for="cap in capabilityOptions"
                     :key="cap"
@@ -590,9 +591,11 @@ watch(providerId, () => {
   background: transparent;
 }
 .settings-page-inner {
+  width: 100%;
   max-width: 840px;
   margin: 0 auto;
-  padding: 20px 16px 40px;
+  padding: 20px;
+  box-sizing: border-box;
 }
 .settings-page-header {
   display: grid;
@@ -602,10 +605,10 @@ watch(providerId, () => {
   margin-bottom: 18px;
 }
 .settings-back-btn {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 999px;
   display: grid;
   place-items: center;
   background: rgba(var(--v-theme-on-surface), 0.05);
@@ -617,7 +620,8 @@ watch(providerId, () => {
   background: rgba(var(--v-theme-on-surface), 0.08);
 }
 .settings-back-btn:active {
-  transform: scale(0.96);
+  background: color-mix(in srgb, var(--miuix-surface-container-high) 90%, var(--miuix-on-container) 10%);
+  transform: none;
 }
 .settings-page-heading { min-width: 0; }
 .settings-page-title {
@@ -634,11 +638,11 @@ watch(providerId, () => {
 }
 
 .settings-panel {
-  border: 1px solid var(--aerina-border);
-  border-radius: 14px;
-  background: var(--aerina-material);
-  backdrop-filter: var(--aerina-blur);
-  -webkit-backdrop-filter: var(--aerina-blur);
+  border: 0;
+  border-radius: 16px;
+  background: var(--miuix-surface-container);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   overflow: hidden;
 }
 .settings-panel-title {
@@ -698,16 +702,15 @@ watch(providerId, () => {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--aerina-border);
-  background: var(--aerina-material);
-  backdrop-filter: var(--aerina-blur);
-  -webkit-backdrop-filter: var(--aerina-blur);
+  border-radius: 16px;
+  border: 0;
+  background: var(--miuix-surface-container);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   transition: border-color var(--aerina-spring), background var(--aerina-spring);
 }
 .model-card:hover {
-  border-color: rgba(var(--v-theme-primary), 0.3);
-  background: var(--aerina-material-heavy);
+  background: color-mix(in srgb, var(--miuix-surface-container) 94%, var(--miuix-on-container) 6%);
 }
 .model-card-main {
   min-width: 0;
@@ -731,7 +734,7 @@ watch(providerId, () => {
 .remote-model-compact-list {
   max-height: 320px;
   overflow-y: auto;
-  background: rgba(var(--v-theme-surface), 0.3);
+  background: var(--miuix-surface-container);
 }
 .remote-model-row {
   display: flex;
@@ -747,6 +750,11 @@ watch(providerId, () => {
 }
 .remote-model-row.selected {
   background: rgba(var(--v-theme-primary), 0.08);
+}
+.model-capability-selected {
+  color: rgb(var(--v-theme-on-surface)) !important;
+  border-color: rgb(var(--v-theme-primary)) !important;
+  background: rgba(var(--v-theme-primary), 0.1) !important;
 }
 .remote-model-row.disabled {
   opacity: 0.5;

@@ -42,19 +42,17 @@ const themeItems = computed(() => [
   { title: t("common.dark"), value: "dark" as ThemeMode, icon: "mdi-weather-night" },
 ]);
 
-const primaryItems = computed(() => [
-  { key: "chat", to: "/", title: t("nav.chat"), icon: "mdi-message-text-outline", exact: true },
+const runtimeItems = computed(() => [
+  { key: "chat", to: "/", title: t("chat.conversationMode"), icon: "mdi-message-text-outline", exact: true },
   { key: "agent", title: t("chat.agentTab"), icon: "mdi-robot-outline", reserved: true, badge: t("chat.comingSoonShort") },
-  { key: "ranking", to: "/ranking", title: t("nav.ranking"), icon: "mdi-trophy-outline", exact: false },
-  { key: "settings", to: "/settings", title: t("nav.settings"), icon: "mdi-cog-outline", exact: false },
 ]);
 
-function primaryActive(item: { to?: string; exact?: boolean }) {
+function runtimeActive(item: { to?: string; exact?: boolean }) {
   if (!item.to) return false;
   return item.exact ? route.path === item.to : route.path === item.to || route.path.startsWith(`${item.to}/`);
 }
 
-function activatePrimary(item: { to?: string; reserved?: boolean }) {
+function activateRuntime(item: { to?: string; reserved?: boolean }) {
   if (item.reserved) {
     window.dispatchEvent(new CustomEvent("aerina:open-agent-entry"));
     return;
@@ -262,20 +260,23 @@ function createNew() {
       </div>
     </div>
 
-    <nav v-if="!mobile" class="unified-primary-nav" :aria-label="t('app.name')">
-      <button
-        v-for="item in primaryItems"
-        :key="item.key"
-        type="button"
-        class="unified-primary-item"
-        :class="{ active: primaryActive(item), reserved: item.reserved }"
-        :aria-current="primaryActive(item) ? 'page' : undefined"
-        @click="activatePrimary(item)"
-      >
-        <v-icon :icon="item.icon" size="16" />
-        <span>{{ item.title }}</span>
-        <span v-if="item.badge" class="unified-primary-badge">{{ item.badge }}</span>
-      </button>
+    <nav v-if="!mobile" class="unified-runtime-nav" :aria-label="t('chat.runtimeMode')">
+      <div class="unified-runtime-label">{{ t("chat.runtimeMode") }}</div>
+      <div class="unified-runtime-switch">
+        <button
+          v-for="item in runtimeItems"
+          :key="item.key"
+          type="button"
+          class="unified-runtime-item"
+          :class="{ active: runtimeActive(item), reserved: item.reserved }"
+          :aria-current="runtimeActive(item) ? 'page' : undefined"
+          @click="activateRuntime(item)"
+        >
+          <v-icon :icon="item.icon" size="16" />
+          <span class="unified-runtime-item-label">{{ item.title }}</span>
+          <span v-if="item.badge" class="unified-runtime-badge">{{ item.badge }}</span>
+        </button>
+      </div>
     </nav>
 
     <!-- Assistant directory and its conversation drill-down -->
@@ -411,8 +412,21 @@ function createNew() {
       </section>
     </div>
 
-    <!-- Footer: User Profile Activator -->
+    <!-- Footer: Settings next to the persistent user area -->
     <div class="unified-footer border-t">
+      <button
+        v-if="!mobile"
+        type="button"
+        class="unified-footer-settings"
+        :class="{ active: route.path === '/settings' || route.path.startsWith('/settings/') }"
+        :aria-current="route.path === '/settings' || route.path.startsWith('/settings/') ? 'page' : undefined"
+        @click="router.push('/settings')"
+      >
+        <v-icon icon="mdi-cog-outline" size="17" />
+        <span>{{ t("nav.settings") }}</span>
+        <v-icon icon="mdi-chevron-right" size="15" class="ms-auto unified-footer-settings-arrow" />
+      </button>
+
       <v-menu
         v-model="menuOpen"
         location="top start"

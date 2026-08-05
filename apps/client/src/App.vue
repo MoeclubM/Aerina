@@ -195,6 +195,14 @@ onUnmounted(() => {
     min-height: var(--aerina-window-top-inset);
     padding-inline-end: 138px;
   }
+
+  .has-custom-titlebar .settings-page-inner,
+  .has-custom-titlebar .appearance-inner,
+  .has-custom-titlebar .assistants-inner,
+  .has-custom-titlebar .profile-settings-inner,
+  .has-custom-titlebar .mcp-page {
+    padding-top: calc(var(--aerina-window-top-inset) + 20px) !important;
+  }
 }
 
 @media (max-width: 679px) {

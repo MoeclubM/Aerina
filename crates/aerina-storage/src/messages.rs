@@ -383,23 +383,30 @@ impl Db {
     pub async fn insert_usage(&self, usage: &UsageRecord) -> Result<()> {
         sqlx::query(
             "INSERT INTO usage_records (
-                candidate_id, prompt_tokens, completion_tokens, total_tokens, cost_usd, latency_ms, ttft_ms
-             ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                candidate_id, prompt_tokens, completion_tokens, output_tokens, total_tokens,
+                cost_usd, latency_ms, ttft_ms, reasoning_tokens, reasoning_duration_ms
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(candidate_id) DO UPDATE SET
                 prompt_tokens = excluded.prompt_tokens,
                 completion_tokens = excluded.completion_tokens,
+                output_tokens = excluded.output_tokens,
                 total_tokens = excluded.total_tokens,
                 cost_usd = excluded.cost_usd,
                 latency_ms = excluded.latency_ms,
-                ttft_ms = excluded.ttft_ms",
+                ttft_ms = excluded.ttft_ms,
+                reasoning_tokens = excluded.reasoning_tokens,
+                reasoning_duration_ms = excluded.reasoning_duration_ms",
         )
         .bind(id_str(usage.candidate_id))
         .bind(usage.prompt_tokens.map(|v| v as i64))
         .bind(usage.completion_tokens.map(|v| v as i64))
+        .bind(usage.output_tokens.map(|v| v as i64))
         .bind(usage.total_tokens.map(|v| v as i64))
         .bind(usage.cost_usd)
         .bind(usage.latency_ms.map(|v| v as i64))
         .bind(usage.ttft_ms.map(|v| v as i64))
+        .bind(usage.reasoning_tokens.map(|v| v as i64))
+        .bind(usage.reasoning_duration_ms.map(|v| v as i64))
         .execute(&self.pool)
         .await?;
         Ok(())

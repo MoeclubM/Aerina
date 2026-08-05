@@ -208,7 +208,7 @@ function mathBlockDollar(
 }
 
 function installKatex(md: MarkdownIt) {
-  md.inline.ruler.after("escape", "math_inline_bracket", mathInlineBracket);
+  md.inline.ruler.before("escape", "math_inline_bracket", mathInlineBracket);
   md.inline.ruler.after("math_inline_bracket", "math_inline_dollar", mathInlineDollar);
   md.block.ruler.after("blockquote", "math_block_dollar", mathBlockDollar, {
     alt: ["paragraph", "reference", "blockquote", "list"],

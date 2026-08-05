@@ -64,6 +64,17 @@ export function lightenHex(hex: string, amount = 0.22): string {
   return `#${[mix(r), mix(g), mix(b)].map((n) => n.toString(16).padStart(2, "0")).join("").toUpperCase()}`;
 }
 
+function foregroundFor(hex: string): "#FFFFFF" | "#081018" {
+  const channels = [1, 3, 5].map((offset) => {
+    const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+  const whiteContrast = 1.05 / (luminance + 0.05);
+  const darkContrast = (luminance + 0.05) / 0.054;
+  return whiteContrast >= darkContrast ? "#FFFFFF" : "#081018";
+}
+
 export function applyAccentToTheme(
   theme: ReturnType<typeof useTheme>,
   accent: string,
@@ -71,7 +82,9 @@ export function applyAccentToTheme(
   const lightPrimary = normalizeHex(accent) ?? DEFAULT_ACCENT;
   const darkPrimary = lightenHex(lightPrimary, 0.28);
   theme.themes.value.light.colors.primary = lightPrimary;
+  theme.themes.value.light.colors["on-primary"] = foregroundFor(lightPrimary);
   theme.themes.value.dark.colors.primary = darkPrimary;
+  theme.themes.value.dark.colors["on-primary"] = foregroundFor(darkPrimary);
   document.documentElement.style.setProperty("--aerina-accent", lightPrimary);
   document.documentElement.style.setProperty("--aerina-accent-dark", darkPrimary);
 }

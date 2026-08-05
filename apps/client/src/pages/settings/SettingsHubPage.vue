@@ -94,9 +94,11 @@ const groups = computed(() => [
   background: transparent;
 }
 .settings-page-inner {
-  width: min(720px, calc(100% - 40px));
+  width: 100%;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 26px 0 40px;
+  padding: 26px 20px 40px;
+  box-sizing: border-box;
 }
 .settings-hero {
   margin-bottom: 20px;
@@ -120,17 +122,16 @@ const groups = computed(() => [
 .settings-group-title {
   margin: 0 0 7px 4px;
   color: rgba(var(--v-theme-on-surface), 0.66);
-  font-size: 0.72rem;
+  font-size: 0.875rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   line-height: 1.4;
-  text-transform: uppercase;
 }
 .settings-list {
   overflow: hidden;
-  border: 1px solid rgba(var(--v-border-color), 0.38);
-  border-radius: 15px;
-  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, transparent);
+  border: 0;
+  border-radius: 16px;
+  background: var(--miuix-surface-container);
 }
 .settings-row {
   display: grid;
@@ -138,33 +139,33 @@ const groups = computed(() => [
   align-items: center;
   gap: 11px;
   width: 100%;
-  min-height: 64px;
-  padding: 9px 12px;
+  min-height: 68px;
+  padding: 10px 16px;
   border: 0;
-  border-bottom: 1px solid rgba(var(--v-border-color), 0.24);
+  border-bottom: 1px solid var(--miuix-divider);
   background: transparent;
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 130ms ease, transform 100ms ease-out;
+  transition: background var(--aerina-spring);
 }
 .settings-row:last-child {
   border-bottom: 0;
 }
 .settings-row:hover,
 .settings-row:focus-visible {
-  background: rgba(var(--v-theme-primary), 0.065);
+  background: color-mix(in srgb, var(--miuix-surface-container) 94%, var(--miuix-on-container) 6%);
   outline: none;
 }
 .settings-row:active {
-  transform: scale(0.995);
+  background: color-mix(in srgb, var(--miuix-surface-container) 90%, var(--miuix-on-container) 10%);
 }
 .settings-row-icon {
   width: 36px;
   height: 36px;
   display: grid;
   place-items: center;
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgba(var(--v-theme-primary), 0.11);
   color: rgb(var(--v-theme-primary));
 }
@@ -184,8 +185,8 @@ const groups = computed(() => [
 }
 .settings-row-desc {
   overflow: hidden;
-  color: rgba(var(--v-theme-on-surface), 0.66);
-  font-size: 0.75rem;
+  color: var(--miuix-summary);
+  font-size: 0.8125rem;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -196,8 +197,8 @@ const groups = computed(() => [
 
 @media (max-width: 679px) {
   .settings-page-inner {
-    width: calc(100% - 24px);
-    padding: 18px 0 28px;
+    width: 100%;
+    padding: 18px 14px 28px;
   }
   .settings-hero {
     margin-bottom: 16px;
@@ -213,14 +214,14 @@ const groups = computed(() => [
   }
   .settings-group-title {
     margin-left: 3px;
-    font-size: 0.68rem;
+    font-size: 0.8125rem;
   }
   .settings-list {
-    border-radius: 14px;
+    border-radius: 16px;
   }
   .settings-row {
-    min-height: 60px;
-    padding: 8px 11px;
+    min-height: 68px;
+    padding: 10px 16px;
   }
   .settings-row-desc {
     white-space: normal;
@@ -229,7 +230,7 @@ const groups = computed(() => [
 
 @media (prefers-reduced-transparency: reduce) {
   .settings-list {
-    background: rgb(var(--v-theme-surface));
+    background: var(--miuix-surface-container);
   }
 }
 </style>

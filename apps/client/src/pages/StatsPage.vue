@@ -131,8 +131,8 @@ onMounted(refresh);
           <v-btn size="small" variant="text" prepend-icon="mdi-refresh" :loading="loading" @click="refresh">
             {{ t("stats.refresh") }}
           </v-btn>
-          <v-btn size="small" variant="tonal" @click="exportStats('json')">{{ t("stats.exportJson") }}</v-btn>
-          <v-btn size="small" variant="tonal" @click="exportStats('csv')">{{ t("stats.exportCsv") }}</v-btn>
+          <v-btn size="small" color="primary" variant="tonal" @click="exportStats('json')">{{ t("stats.exportJson") }}</v-btn>
+          <v-btn size="small" color="primary" variant="tonal" @click="exportStats('csv')">{{ t("stats.exportCsv") }}</v-btn>
           <v-btn size="small" color="primary" @click="createBackup">{{ t("stats.createBackup") }}</v-btn>
         </div>
       </header>
@@ -191,7 +191,7 @@ onMounted(refresh);
                 <div class="backup-name">{{ b.name }}</div>
                 <div class="backup-path">{{ b.path }}</div>
               </div>
-              <v-btn size="small" variant="tonal" @click="restore(b.name)">{{ t("stats.restore") }}</v-btn>
+              <v-btn size="small" color="primary" variant="tonal" @click="restore(b.name)">{{ t("stats.restore") }}</v-btn>
             </div>
           </div>
         </div>

@@ -207,10 +207,13 @@ CREATE TABLE IF NOT EXISTS usage_records (
     candidate_id TEXT PRIMARY KEY NOT NULL,
     prompt_tokens INTEGER,
     completion_tokens INTEGER,
+    output_tokens INTEGER,
     total_tokens INTEGER,
     cost_usd REAL,
     latency_ms INTEGER,
     ttft_ms INTEGER,
+    reasoning_tokens INTEGER,
+    reasoning_duration_ms INTEGER,
     FOREIGN KEY(candidate_id) REFERENCES candidate_generations(id)
 );
 

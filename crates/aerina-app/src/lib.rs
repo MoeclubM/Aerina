@@ -105,12 +105,16 @@ pub struct CandidateInfo {
     pub slot_label: String,
     pub model_name: String,
     pub model_preset_id: String,
+    pub status: CandidateStatus,
+    pub error_message: Option<String>,
+    pub usage: Option<UsageReport>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoundInfo {
     pub id: String,
     pub selected_candidate_id: Option<String>,
+    pub usage: Option<UsageReport>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -160,6 +164,8 @@ impl AppState {
         let db_path = data_dir.join("aerina.db");
         let db = Db::connect(db_path).await?;
         let (_profile, workspace) = db.ensure_bootstrap().await?;
+        db.repair_missing_model_preset_references(workspace.id)
+            .await?;
         let secrets = SecretStore::open(data_dir.join("secrets.json"))?;
         let media = MediaStore::new(data_dir.clone());
         Ok(Self {
@@ -308,6 +314,10 @@ impl AppState {
             .next()
             .ok_or_else(|| anyhow!("profile data scope missing"))?;
         self.inner.db.set_active_workspace_id(workspace.id).await?;
+        self.inner
+            .db
+            .repair_missing_model_preset_references(workspace.id)
+            .await?;
         *self.inner.workspace_id.write().await = workspace.id;
         self.session_info().await
     }
@@ -398,29 +408,82 @@ impl AppState {
             .map(|(message, blocks)| MessageView { message, blocks })
             .collect();
         let branches = self.inner.db.list_branches(id).await?;
-        let rounds = self
-            .inner
-            .db
-            .list_rounds_for_conversation(id)
-            .await?
+        let round_rows = self.inner.db.list_rounds_for_conversation(id).await?;
+        let candidate_rows = self.inner.db.list_candidates_for_conversation(id).await?;
+        let usage_rows = self.inner.db.list_usage_for_conversation(id).await?;
+        let usage_by_candidate = usage_rows
+            .iter()
+            .map(|usage| (usage.candidate_id, usage))
+            .collect::<HashMap<_, _>>();
+        let mut usage_by_round = HashMap::<RoundId, UsageReport>::new();
+        for candidate in &candidate_rows {
+            let Some(usage) = usage_by_candidate.get(&candidate.id) else {
+                continue;
+            };
+            let round_usage = usage_by_round.entry(candidate.round_id).or_default();
+            if let Some(value) = usage.prompt_tokens {
+                *round_usage.prompt_tokens.get_or_insert(0) += value;
+            }
+            if let Some(value) = usage.completion_tokens {
+                *round_usage.completion_tokens.get_or_insert(0) += value;
+            }
+            if let Some(value) = usage.output_tokens {
+                *round_usage.output_tokens.get_or_insert(0) += value;
+            }
+            if let Some(value) = usage.total_tokens {
+                *round_usage.total_tokens.get_or_insert(0) += value;
+            }
+            if let Some(value) = usage.cost_usd {
+                *round_usage.cost_usd.get_or_insert(0.0) += value;
+            }
+            if let Some(value) = usage.latency_ms {
+                round_usage.latency_ms = Some(round_usage.latency_ms.unwrap_or(0).max(value));
+            }
+            if let Some(value) = usage.ttft_ms {
+                round_usage.ttft_ms = Some(round_usage.ttft_ms.map_or(value, |old| old.min(value)));
+            }
+            if let Some(value) = usage.reasoning_tokens {
+                *round_usage.reasoning_tokens.get_or_insert(0) += value;
+            }
+            if let Some(value) = usage.reasoning_duration_ms {
+                round_usage.reasoning_duration_ms =
+                    Some(round_usage.reasoning_duration_ms.unwrap_or(0).max(value));
+            }
+        }
+        let rounds = round_rows
             .into_iter()
-            .map(|r| RoundInfo {
-                id: r.id.to_string(),
-                selected_candidate_id: r.selected_candidate_id.map(|v| v.to_string()),
+            .map(|round| RoundInfo {
+                id: round.id.to_string(),
+                selected_candidate_id: round.selected_candidate_id.map(|value| value.to_string()),
+                usage: usage_by_round.remove(&round.id),
             })
             .collect();
-        let candidates = self
-            .inner
-            .db
-            .list_candidates_for_conversation(id)
-            .await?
+        let candidates = candidate_rows
             .into_iter()
-            .map(|c| CandidateInfo {
-                id: c.id.to_string(),
-                round_id: c.round_id.to_string(),
-                slot_label: c.slot_label,
-                model_name: c.model_name,
-                model_preset_id: c.model_preset_id.to_string(),
+            .map(|candidate| {
+                let usage = usage_by_candidate
+                    .get(&candidate.id)
+                    .map(|usage| UsageReport {
+                        prompt_tokens: usage.prompt_tokens,
+                        completion_tokens: usage.completion_tokens,
+                        output_tokens: usage.output_tokens,
+                        total_tokens: usage.total_tokens,
+                        cost_usd: usage.cost_usd,
+                        latency_ms: usage.latency_ms,
+                        ttft_ms: usage.ttft_ms,
+                        reasoning_tokens: usage.reasoning_tokens,
+                        reasoning_duration_ms: usage.reasoning_duration_ms,
+                    });
+                CandidateInfo {
+                    id: candidate.id.to_string(),
+                    round_id: candidate.round_id.to_string(),
+                    slot_label: candidate.slot_label,
+                    model_name: candidate.model_name,
+                    model_preset_id: candidate.model_preset_id.to_string(),
+                    status: candidate.status,
+                    error_message: candidate.error_message,
+                    usage,
+                }
             })
             .collect();
         Ok(ConversationDetail {
@@ -446,7 +509,9 @@ impl AppState {
             tree::create_conversation(self.current_workspace().await, title, request.mode);
 
         let model_preset_ids = if let Some(preset_id) = request.model_preset_id {
-            vec![parse_entity_id(&preset_id)?]
+            let preset_id = parse_entity_id(&preset_id)?;
+            self.validate_model_preset_ids(&[preset_id]).await?;
+            vec![preset_id]
         } else {
             self.inner
                 .db
@@ -529,6 +594,31 @@ impl AppState {
 
     pub async fn delete_provider(&self, provider_id: &str) -> Result<()> {
         let id = parse_entity_id(provider_id)?;
+        let provider = self
+            .inner
+            .db
+            .get_provider(id)
+            .await?
+            .ok_or_else(|| anyhow!("provider not found"))?;
+        if provider.workspace_id != self.current_workspace().await {
+            return Err(anyhow!("provider workspace mismatch"));
+        }
+        let preset_ids = self
+            .inner
+            .db
+            .list_model_presets_for_provider(id)
+            .await?
+            .into_iter()
+            .map(|preset| preset.id)
+            .collect::<Vec<_>>();
+        let usage = self
+            .inner
+            .db
+            .count_conversations_using_model_presets(provider.workspace_id, &preset_ids)
+            .await?;
+        if usage > 0 {
+            return Err(anyhow!("provider models are used by {usage} conversations"));
+        }
         self.inner.db.delete_provider(id).await
     }
 
@@ -596,6 +686,23 @@ impl AppState {
 
     pub async fn delete_model_preset(&self, preset_id: &str) -> Result<()> {
         let id = parse_entity_id(preset_id)?;
+        let preset = self
+            .inner
+            .db
+            .get_model_preset(id)
+            .await?
+            .ok_or_else(|| anyhow!("model preset not found"))?;
+        if preset.workspace_id != self.current_workspace().await {
+            return Err(anyhow!("model preset workspace mismatch"));
+        }
+        let usage = self
+            .inner
+            .db
+            .count_conversations_using_model_presets(preset.workspace_id, &[id])
+            .await?;
+        if usage > 0 {
+            return Err(anyhow!("model preset is used by {usage} conversations"));
+        }
         self.inner.db.delete_model_preset(id).await
     }
 
@@ -689,6 +796,7 @@ impl AppState {
     ) -> Result<ConversationSettings> {
         let conversation_id = parse_entity_id(conversation_id)?;
         let model_preset_id = parse_entity_id(model_preset_id)?;
+        self.validate_model_preset_ids(&[model_preset_id]).await?;
         let mut settings = self
             .inner
             .db
@@ -723,8 +831,8 @@ impl AppState {
     }
 
     pub async fn cancel_generation(&self, conversation_id: &str) -> Result<()> {
-        let mut jobs = self.inner.active_jobs.lock().await;
-        if let Some(token) = jobs.remove(conversation_id) {
+        let jobs = self.inner.active_jobs.lock().await;
+        if let Some(token) = jobs.get(conversation_id) {
             token.cancel();
         }
         Ok(())
@@ -866,6 +974,7 @@ impl AppState {
         if ids.is_empty() {
             return Err(anyhow!("at least one model preset is required"));
         }
+        self.validate_model_preset_ids(&ids).await?;
         let mut settings = self
             .inner
             .db
@@ -900,6 +1009,7 @@ impl AppState {
         if ids.len() < slot_count as usize {
             return Err(anyhow!("candidate pool smaller than slot count"));
         }
+        self.validate_model_preset_ids(&ids).await?;
         let mut settings = self
             .inner
             .db
@@ -959,6 +1069,22 @@ impl AppState {
             .collect())
     }
 
+    async fn validate_model_preset_ids(&self, preset_ids: &[ModelPresetId]) -> Result<()> {
+        let workspace_id = self.current_workspace().await;
+        for preset_id in preset_ids {
+            let preset = self
+                .inner
+                .db
+                .get_model_preset(*preset_id)
+                .await?
+                .ok_or_else(|| anyhow!("model preset not found"))?;
+            if preset.workspace_id != workspace_id {
+                return Err(anyhow!("model preset workspace mismatch"));
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) async fn resolve_preset(
         &self,
         preset_id: ModelPresetId,
@@ -996,4 +1122,244 @@ impl AppState {
 
 pub(crate) fn parse_entity_id(value: &str) -> Result<EntityId> {
     Ok(EntityId::from_uuid(Uuid::parse_str(value)?))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn validates_and_protects_model_preset_references() {
+        let data_dir =
+            std::env::temp_dir().join(format!("aerina-app-test-{}", ModelPresetId::new()));
+        let db = Db::connect_in_memory().await.unwrap();
+        let (_profile, workspace) = db.ensure_bootstrap().await.unwrap();
+        let app = AppState {
+            inner: Arc::new(AppInner {
+                db,
+                secrets: SecretStore::open(data_dir.join("secrets.json")).unwrap(),
+                media: MediaStore::new(data_dir.clone()),
+                generation: GenerationEngine::new(),
+                workspace_id: RwLock::new(workspace.id),
+                active_jobs: Mutex::new(HashMap::new()),
+            }),
+        };
+        let missing = ModelPresetId::new().to_string();
+        let error = app
+            .create_conversation(CreateConversationRequest {
+                title: None,
+                mode: ConversationMode::Chat,
+                model_preset_id: Some(missing),
+            })
+            .await
+            .unwrap_err();
+        assert_eq!(error.to_string(), "model preset not found");
+
+        let provider = app
+            .upsert_provider(UpsertProviderRequest {
+                id: None,
+                name: "provider".into(),
+                kind: ProviderKind::OpenAiCompatible,
+                base_url: "http://localhost".into(),
+                api_key: None,
+                enabled: Some(true),
+            })
+            .await
+            .unwrap();
+        let preset = app
+            .upsert_model_preset(UpsertModelPresetRequest {
+                id: None,
+                provider_id: provider.id.to_string(),
+                name: "model".into(),
+                model_name: "model".into(),
+                capabilities: vec![CapabilityTag::Text],
+                temperature: None,
+                system_prompt: None,
+                in_random_pool: true,
+                enabled: Some(true),
+            })
+            .await
+            .unwrap();
+        let conversation = app
+            .create_conversation(CreateConversationRequest {
+                title: None,
+                mode: ConversationMode::Chat,
+                model_preset_id: Some(preset.id.to_string()),
+            })
+            .await
+            .unwrap();
+
+        let preset_error = app
+            .delete_model_preset(&preset.id.to_string())
+            .await
+            .unwrap_err();
+        assert_eq!(
+            preset_error.to_string(),
+            "model preset is used by 1 conversations"
+        );
+        let provider_error = app
+            .delete_provider(&provider.id.to_string())
+            .await
+            .unwrap_err();
+        assert_eq!(
+            provider_error.to_string(),
+            "provider models are used by 1 conversations"
+        );
+
+        app.delete_conversation(&conversation.id.to_string())
+            .await
+            .unwrap();
+        app.delete_model_preset(&preset.id.to_string())
+            .await
+            .unwrap();
+        app.delete_provider(&provider.id.to_string()).await.unwrap();
+
+        let token = CancellationToken::new();
+        app.inner
+            .active_jobs
+            .lock()
+            .await
+            .insert(conversation.id.to_string(), token.clone());
+        app.cancel_generation(&conversation.id.to_string())
+            .await
+            .unwrap();
+        assert!(token.is_cancelled());
+        assert!(app
+            .inner
+            .active_jobs
+            .lock()
+            .await
+            .contains_key(&conversation.id.to_string()));
+
+        drop(app);
+        std::fs::remove_dir_all(data_dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn conversation_detail_exposes_candidate_and_round_metrics() {
+        let data_dir =
+            std::env::temp_dir().join(format!("aerina-app-metrics-{}", ModelPresetId::new()));
+        let db = Db::connect_in_memory().await.unwrap();
+        let (_profile, workspace) = db.ensure_bootstrap().await.unwrap();
+        let app = AppState {
+            inner: Arc::new(AppInner {
+                db,
+                secrets: SecretStore::open(data_dir.join("secrets.json")).unwrap(),
+                media: MediaStore::new(data_dir.clone()),
+                generation: GenerationEngine::new(),
+                workspace_id: RwLock::new(workspace.id),
+                active_jobs: Mutex::new(HashMap::new()),
+            }),
+        };
+        let provider = app
+            .upsert_provider(UpsertProviderRequest {
+                id: None,
+                name: "provider".into(),
+                kind: ProviderKind::OpenAiCompatible,
+                base_url: "http://localhost".into(),
+                api_key: None,
+                enabled: Some(true),
+            })
+            .await
+            .unwrap();
+        let preset = app
+            .upsert_model_preset(UpsertModelPresetRequest {
+                id: None,
+                provider_id: provider.id.to_string(),
+                name: "model".into(),
+                model_name: "model".into(),
+                capabilities: vec![CapabilityTag::Text],
+                temperature: None,
+                system_prompt: None,
+                in_random_pool: true,
+                enabled: Some(true),
+            })
+            .await
+            .unwrap();
+        let conversation = app
+            .create_conversation(CreateConversationRequest {
+                title: Some("metrics".into()),
+                mode: ConversationMode::Sbs,
+                model_preset_id: Some(preset.id.to_string()),
+            })
+            .await
+            .unwrap();
+        let branch_id = conversation.active_branch_id.unwrap();
+        let user = tree::create_user_message(conversation.id, branch_id, None);
+        app.inner
+            .db
+            .insert_message(&user, &[ContentBlock::text("hello")])
+            .await
+            .unwrap();
+        let round = tree::create_round(conversation.id, branch_id, user.id);
+        app.inner
+            .db
+            .insert_round(
+                &round,
+                &RoundSnapshot {
+                    round_id: round.id,
+                    mode: ConversationMode::Sbs,
+                    system_prompt: None,
+                    temperature: None,
+                    model_preset_ids: vec![preset.id],
+                    arena_kind: None,
+                    arena_category: None,
+                    image_size: None,
+                    image_aspect_ratio: None,
+                    created_at: Utc::now(),
+                },
+            )
+            .await
+            .unwrap();
+
+        for (slot, latency, ttft, output, reasoning, reasoning_duration) in [
+            ("A", 3429, 3421, 17, 6, 3421),
+            ("B", 4000, 1000, 20, 10, 3900),
+        ] {
+            let mut candidate =
+                tree::create_candidate(round.id, slot, preset.id, provider.id, "model", false);
+            candidate.status = CandidateStatus::Completed;
+            candidate.completed_at = Some(Utc::now());
+            app.inner.db.insert_candidate(&candidate).await.unwrap();
+            app.inner
+                .db
+                .insert_usage(&UsageRecord {
+                    candidate_id: candidate.id,
+                    prompt_tokens: Some(10),
+                    completion_tokens: Some(output + reasoning),
+                    output_tokens: Some(output),
+                    total_tokens: Some(10 + output + reasoning),
+                    cost_usd: None,
+                    latency_ms: Some(latency),
+                    ttft_ms: Some(ttft),
+                    reasoning_tokens: Some(reasoning),
+                    reasoning_duration_ms: Some(reasoning_duration),
+                })
+                .await
+                .unwrap();
+        }
+
+        let detail = app
+            .get_conversation_detail(&conversation.id.to_string())
+            .await
+            .unwrap();
+        assert_eq!(detail.candidates.len(), 2);
+        assert!(detail
+            .candidates
+            .iter()
+            .all(|candidate| candidate.status == CandidateStatus::Completed));
+        assert_eq!(
+            detail.candidates[0].usage.as_ref().unwrap().ttft_ms,
+            Some(3421)
+        );
+        let round_usage = detail.rounds[0].usage.as_ref().unwrap();
+        assert_eq!(round_usage.latency_ms, Some(4000));
+        assert_eq!(round_usage.ttft_ms, Some(1000));
+        assert_eq!(round_usage.output_tokens, Some(37));
+        assert_eq!(round_usage.reasoning_tokens, Some(16));
+        assert_eq!(round_usage.reasoning_duration_ms, Some(3900));
+
+        drop(app);
+        std::fs::remove_dir_all(data_dir).unwrap();
+    }
 }

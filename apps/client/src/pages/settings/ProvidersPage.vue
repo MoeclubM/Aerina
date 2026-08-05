@@ -1,7 +1,7 @@
 <script setup lang="ts">
 defineOptions({ name: "ProvidersPage" });
 
-import { computed, onMounted, ref } from "vue";
+import { computed, onActivated, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { api, errMessage, type ProviderKind } from "../../api";
@@ -78,6 +78,7 @@ async function remove(id: string) {
 }
 
 onMounted(refresh);
+onActivated(refresh);
 </script>
 
 <template>
@@ -220,9 +221,11 @@ onMounted(refresh);
   background: transparent;
 }
 .settings-page-inner {
-  max-width: 760px;
+  width: 100%;
+  max-width: 840px;
   margin: 0 auto;
   padding: 24px 20px 48px;
+  box-sizing: border-box;
 }
 .settings-page-header {
   display: grid;
@@ -235,7 +238,7 @@ onMounted(refresh);
   width: 40px;
   height: 40px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 16px;
   display: grid;
   place-items: center;
   background: rgba(var(--v-theme-on-surface), 0.05);
@@ -247,7 +250,8 @@ onMounted(refresh);
   background: rgba(var(--v-theme-on-surface), 0.08);
 }
 .settings-back-btn:active {
-  transform: scale(0.96);
+  background: color-mix(in srgb, var(--miuix-surface-container-high) 90%, var(--miuix-on-container) 10%);
+  transform: none;
 }
 .settings-page-heading {
   min-width: 0;
@@ -274,7 +278,7 @@ onMounted(refresh);
   min-height: 40px;
   padding: 0 14px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 16px;
   background: rgb(var(--v-theme-primary));
   color: rgb(var(--v-theme-on-primary));
   font: inherit;
@@ -285,10 +289,11 @@ onMounted(refresh);
   transition: filter 0.12s ease, transform 0.1s ease, opacity 0.12s ease;
 }
 .settings-primary-btn:hover {
-  filter: brightness(1.04);
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 92%, rgb(var(--v-theme-on-primary)) 8%);
 }
 .settings-primary-btn:active {
-  transform: scale(0.98);
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 84%, rgb(var(--v-theme-on-primary)) 16%);
+  transform: none;
 }
 .settings-primary-btn:disabled {
   opacity: 0.5;
@@ -299,8 +304,8 @@ onMounted(refresh);
   min-height: 40px;
   padding: 0 14px;
   border: 0;
-  border-radius: 12px;
-  background: transparent;
+  border-radius: 16px;
+  background: var(--miuix-secondary-container);
   color: rgba(var(--v-theme-on-surface), 0.72);
   font: inherit;
   font-size: 0.9rem;
@@ -311,11 +316,11 @@ onMounted(refresh);
   background: rgba(var(--v-theme-on-surface), 0.06);
 }
 .settings-panel {
-  border: 1px solid var(--aerina-border);
+  border: 0;
   border-radius: 16px;
-  background: var(--aerina-material);
-  backdrop-filter: var(--aerina-blur);
-  -webkit-backdrop-filter: var(--aerina-blur);
+  background: var(--miuix-surface-container);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   overflow: hidden;
 }
 .settings-panel-title {
@@ -369,28 +374,26 @@ onMounted(refresh);
   align-items: center;
   gap: 14px;
   text-align: left;
-  border: 1px solid var(--aerina-border);
-  background: var(--aerina-material);
-  backdrop-filter: var(--aerina-blur);
-  -webkit-backdrop-filter: var(--aerina-blur);
-  border-radius: 14px;
+  border: 0;
+  background: var(--miuix-surface-container);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-radius: 16px;
   padding: 14px 16px;
   color: inherit;
   cursor: pointer;
-  transition: border-color 0.12s ease, background 0.12s ease, transform 0.1s ease;
+  transition: background var(--aerina-spring);
 }
 .provider-card:hover {
-  border-color: rgba(var(--v-theme-primary), 0.32);
-  background: var(--aerina-material-heavy);
-  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--miuix-surface-container) 94%, var(--miuix-on-container) 6%);
 }
 .provider-card:active {
-  transform: scale(0.995);
+  background: color-mix(in srgb, var(--miuix-surface-container) 90%, var(--miuix-on-container) 10%);
 }
 .provider-card-icon {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 16px;
   display: grid;
   place-items: center;
   background: rgba(var(--v-theme-primary), 0.12);
@@ -409,7 +412,7 @@ onMounted(refresh);
   line-height: 1.3;
 }
 .provider-card-sub {
-  color: rgba(var(--v-theme-on-surface), 0.56);
+  color: var(--miuix-summary);
   font-size: 0.82rem;
   line-height: 1.35;
   overflow: hidden;
@@ -430,14 +433,14 @@ onMounted(refresh);
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 650;
-  background: rgba(var(--v-theme-on-surface), 0.06);
+  background: var(--miuix-surface-container-high);
   color: rgba(var(--v-theme-on-surface), 0.72);
   white-space: nowrap;
 }
 .provider-card-delete {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
   display: grid;
   place-items: center;
   color: rgba(var(--v-theme-on-surface), 0.55);
@@ -452,7 +455,7 @@ onMounted(refresh);
   margin-inline-start: 2px;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 679px) {
   .settings-page-inner {
     padding-top: 18px;
   }
@@ -462,10 +465,14 @@ onMounted(refresh);
     margin-bottom: 14px;
   }
   .settings-page-title {
-    display: none;
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 1.15rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .settings-page-desc {
-    font-size: 0.78rem;
+    display: none;
   }
   .settings-primary-btn {
     grid-column: 1 / -1;

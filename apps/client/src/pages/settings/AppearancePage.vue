@@ -65,7 +65,7 @@ function resetAccent() {
 </script>
 
 <template>
-  <div class="appearance-page">
+  <div class="appearance-page settings-page">
     <div class="appearance-inner">
       <header class="appearance-header">
         <button
@@ -179,9 +179,11 @@ function resetAccent() {
   background: transparent;
 }
 .appearance-inner {
-  width: min(720px, calc(100% - 40px));
+  width: 100%;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 28px 0 48px;
+  padding: 28px 20px 48px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -216,12 +218,12 @@ function resetAccent() {
 }
 .settings-surface {
   padding: 18px;
-  border: 1px solid rgba(var(--v-border-color), 0.4);
-  border-radius: 18px;
-  background: var(--aerina-material);
-  backdrop-filter: var(--aerina-blur);
-  -webkit-backdrop-filter: var(--aerina-blur);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  border: 0;
+  border-radius: 16px;
+  background: var(--miuix-surface-container);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
 }
 .setting-block {
   padding: 2px 0 20px;
@@ -247,9 +249,9 @@ function resetAccent() {
   max-width: 430px;
   margin-top: 10px;
   padding: 4px;
-  border: 1px solid rgba(var(--v-border-color), 0.35);
-  border-radius: 13px;
-  background: rgba(var(--v-theme-on-surface), 0.04);
+  border: 0;
+  border-radius: 12px;
+  background: var(--miuix-surface);
 }
 .segmented-item {
   min-width: 0;
@@ -271,12 +273,13 @@ function resetAccent() {
   outline: none;
 }
 .segmented-item.active {
-  background: rgb(var(--v-theme-surface));
-  color: rgb(var(--v-theme-primary));
-  box-shadow: 0 1px 3px rgba(20, 28, 48, 0.12);
+  background: var(--miuix-surface-container-high);
+  color: rgb(var(--v-theme-on-surface));
+  box-shadow: none;
 }
 .segmented-item:active {
-  transform: scale(0.98);
+  background: color-mix(in srgb, var(--miuix-surface-container-high) 90%, var(--miuix-on-container) 10%);
+  transform: none;
 }
 .accent-grid {
   display: grid;
@@ -331,11 +334,11 @@ function resetAccent() {
   gap: 8px;
 }
 .accent-native-wrap {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   overflow: hidden;
   border: 1px solid rgba(var(--v-border-color), 0.5);
-  border-radius: 11px;
+  border-radius: 16px;
   cursor: pointer;
 }
 .accent-native {
@@ -349,30 +352,29 @@ function resetAccent() {
 .field-input {
   width: 100%;
   min-width: 0;
-  height: 42px;
+  height: var(--aerina-control-height);
   box-sizing: border-box;
-  padding: 0 12px;
-  border: 1px solid rgba(var(--v-border-color), 0.55);
-  border-radius: 12px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--aerina-control-radius);
   outline: none;
-  background: rgba(var(--v-theme-on-surface), 0.05);
+  background: var(--miuix-secondary-container);
   color: rgb(var(--v-theme-on-surface));
   font: inherit;
   font-size: 0.9rem;
   transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
 }
 .field-input:focus {
-  border-color: rgba(var(--v-theme-primary), 0.7);
-  background: rgba(var(--v-theme-on-surface), 0.03);
-  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.18);
+  background: var(--miuix-secondary-container);
+  box-shadow: inset 0 0 0 2px rgb(var(--v-theme-primary));
 }
 .btn-ghost {
-  min-height: 36px;
-  padding: 7px 10px;
+  min-height: var(--aerina-control-height);
+  padding: 0 16px;
   border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: rgb(var(--v-theme-primary));
+  border-radius: var(--aerina-control-radius);
+  background: var(--miuix-secondary-container);
+  color: rgb(var(--v-theme-on-surface));
   font: inherit;
   font-size: 0.82rem;
   font-weight: 600;
@@ -380,7 +382,7 @@ function resetAccent() {
 }
 .btn-ghost:hover,
 .btn-ghost:focus-visible {
-  background: rgba(var(--v-theme-primary), 0.08);
+  background: color-mix(in srgb, var(--miuix-secondary-container) 94%, var(--miuix-on-container) 6%);
   outline: none;
 }
 .error-banner {
@@ -394,8 +396,8 @@ function resetAccent() {
 
 @media (max-width: 679px) {
   .appearance-inner {
-    width: calc(100% - 28px);
-    padding: 18px 0 36px;
+    width: 100%;
+    padding: 18px 14px 36px;
     gap: 13px;
   }
   .appearance-header {
@@ -403,14 +405,18 @@ function resetAccent() {
     margin-bottom: 0;
   }
   .appearance-title {
-    display: none;
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 1.15rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .appearance-desc {
-    font-size: 0.78rem;
+    display: none;
   }
   .settings-surface {
     padding: 15px 14px 14px;
-    border-radius: 15px;
+    border-radius: 16px;
   }
   .accent-grid {
     grid-template-columns: repeat(4, 34px);
@@ -433,7 +439,7 @@ function resetAccent() {
 
 @media (prefers-reduced-transparency: reduce) {
   .settings-surface {
-    background: rgb(var(--v-theme-surface));
+    background: var(--miuix-surface-container);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }

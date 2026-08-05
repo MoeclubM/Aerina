@@ -62,7 +62,7 @@ function saveRole() {
 </script>
 
 <template>
-  <div class="assistants-page">
+  <div class="assistants-page settings-page">
     <div class="assistants-inner">
       <header class="assistants-header">
         <button
@@ -220,9 +220,11 @@ function saveRole() {
   background: transparent;
 }
 .assistants-inner {
+  width: 100%;
   max-width: 720px;
   margin: 0 auto;
   padding: 28px 20px 48px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -255,12 +257,12 @@ function saveRole() {
   min-width: 0;
   padding: 18px;
   overflow: hidden;
-  border: 1px solid rgba(var(--v-border-color), 0.4);
-  border-radius: 18px;
-  background: var(--aerina-material);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
-  backdrop-filter: blur(20px) saturate(165%);
-  -webkit-backdrop-filter: blur(20px) saturate(165%);
+  border: 0;
+  border-radius: 16px;
+  background: var(--miuix-surface-container);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .roles-section-header {
   display: flex;
@@ -289,7 +291,7 @@ function saveRole() {
   align-items: flex-start;
   gap: 8px;
   padding: 9px 10px;
-  border-radius: 11px;
+  border-radius: 16px;
   color: rgba(var(--v-theme-on-surface), 0.62);
   background: rgba(var(--v-theme-primary), 0.07);
   font-size: 0.75rem;
@@ -361,6 +363,8 @@ function saveRole() {
 .role-dialog-card {
   max-height: calc(100dvh - 32px);
   overflow: hidden;
+  border-radius: 32px !important;
+  background: var(--miuix-background) !important;
 }
 .role-dialog-title {
   display: flex;
@@ -380,21 +384,20 @@ function saveRole() {
 .field-input {
   width: 100%;
   box-sizing: border-box;
-  height: 42px;
-  padding: 0 12px;
-  border: 1px solid rgba(var(--v-border-color), 0.55);
-  border-radius: 12px;
+  height: var(--aerina-control-height);
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--aerina-control-radius);
   outline: none;
-  background: rgba(var(--v-theme-on-surface), 0.05);
+  background: var(--miuix-secondary-container);
   color: rgb(var(--v-theme-on-surface));
   font: inherit;
   font-size: 0.95rem;
   transition: border-color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease;
 }
 .field-input:focus {
-  border-color: rgba(var(--v-theme-primary), 0.7);
-  background: rgba(var(--v-theme-on-surface), 0.03);
-  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.18);
+  background: var(--miuix-secondary-container);
+  box-shadow: inset 0 0 0 2px rgb(var(--v-theme-primary));
 }
 .role-prompt-input {
   min-height: 112px;
@@ -421,7 +424,7 @@ function saveRole() {
 
 @media (prefers-reduced-transparency: reduce) {
   .settings-surface {
-    background: rgb(var(--v-theme-surface));
+    background: var(--miuix-surface-container);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
@@ -437,15 +440,18 @@ function saveRole() {
     margin-bottom: 0;
   }
   .assistants-title {
-    display: none;
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 1.15rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .assistants-desc {
-    font-size: 0.78rem;
-    line-height: 1.4;
+    display: none;
   }
   .settings-surface {
     padding: 15px 14px 14px;
-    border-radius: 15px;
+    border-radius: 16px;
   }
   .roles-section-header {
     flex-wrap: wrap;

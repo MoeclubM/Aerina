@@ -126,8 +126,24 @@ impl Db {
         &self,
         workspace_id: WorkspaceId,
     ) -> Result<Vec<UsageRecord>> {
-        let rows = sqlx::query_as::<_, (String, Option<i64>, Option<i64>, Option<i64>, Option<f64>, Option<i64>, Option<i64>)>(
-            "SELECT u.candidate_id, u.prompt_tokens, u.completion_tokens, u.total_tokens, u.cost_usd, u.latency_ms, u.ttft_ms
+        let rows = sqlx::query_as::<
+            _,
+            (
+                String,
+                Option<i64>,
+                Option<i64>,
+                Option<i64>,
+                Option<i64>,
+                Option<f64>,
+                Option<i64>,
+                Option<i64>,
+                Option<i64>,
+                Option<i64>,
+            ),
+        >(
+            "SELECT u.candidate_id, u.prompt_tokens, u.completion_tokens, u.output_tokens,
+                    u.total_tokens, u.cost_usd, u.latency_ms, u.ttft_ms,
+                    u.reasoning_tokens, u.reasoning_duration_ms
              FROM usage_records u
              JOIN candidate_generations c ON c.id = u.candidate_id
              JOIN rounds r ON r.id = c.round_id
@@ -144,10 +160,62 @@ impl Db {
                     candidate_id: parse_id(&row.0)?,
                     prompt_tokens: row.1.map(|v| v as u32),
                     completion_tokens: row.2.map(|v| v as u32),
-                    total_tokens: row.3.map(|v| v as u32),
-                    cost_usd: row.4,
-                    latency_ms: row.5.map(|v| v as u64),
-                    ttft_ms: row.6.map(|v| v as u64),
+                    output_tokens: row.3.map(|v| v as u32),
+                    total_tokens: row.4.map(|v| v as u32),
+                    cost_usd: row.5,
+                    latency_ms: row.6.map(|v| v as u64),
+                    ttft_ms: row.7.map(|v| v as u64),
+                    reasoning_tokens: row.8.map(|v| v as u32),
+                    reasoning_duration_ms: row.9.map(|v| v as u64),
+                })
+            })
+            .collect()
+    }
+
+    pub async fn list_usage_for_conversation(
+        &self,
+        conversation_id: ConversationId,
+    ) -> Result<Vec<UsageRecord>> {
+        let rows = sqlx::query_as::<
+            _,
+            (
+                String,
+                Option<i64>,
+                Option<i64>,
+                Option<i64>,
+                Option<i64>,
+                Option<f64>,
+                Option<i64>,
+                Option<i64>,
+                Option<i64>,
+                Option<i64>,
+            ),
+        >(
+            "SELECT u.candidate_id, u.prompt_tokens, u.completion_tokens, u.output_tokens,
+                    u.total_tokens, u.cost_usd, u.latency_ms, u.ttft_ms,
+                    u.reasoning_tokens, u.reasoning_duration_ms
+             FROM usage_records u
+             JOIN candidate_generations c ON c.id = u.candidate_id
+             JOIN rounds r ON r.id = c.round_id
+             WHERE r.conversation_id = ?",
+        )
+        .bind(id_str(conversation_id))
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                Ok(UsageRecord {
+                    candidate_id: parse_id(&row.0)?,
+                    prompt_tokens: row.1.map(|v| v as u32),
+                    completion_tokens: row.2.map(|v| v as u32),
+                    output_tokens: row.3.map(|v| v as u32),
+                    total_tokens: row.4.map(|v| v as u32),
+                    cost_usd: row.5,
+                    latency_ms: row.6.map(|v| v as u64),
+                    ttft_ms: row.7.map(|v| v as u64),
+                    reasoning_tokens: row.8.map(|v| v as u32),
+                    reasoning_duration_ms: row.9.map(|v| v as u64),
                 })
             })
             .collect()

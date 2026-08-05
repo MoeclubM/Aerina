@@ -107,6 +107,12 @@ impl Db {
             .await?;
         self.ensure_column("profiles", "auth_provider", "TEXT")
             .await?;
+        self.ensure_column("usage_records", "output_tokens", "INTEGER")
+            .await?;
+        self.ensure_column("usage_records", "reasoning_tokens", "INTEGER")
+            .await?;
+        self.ensure_column("usage_records", "reasoning_duration_ms", "INTEGER")
+            .await?;
         Ok(())
     }
 
@@ -166,5 +172,212 @@ mod tests {
         let listed = db.list_conversations(workspace.id).await.unwrap();
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].title, "hello");
+    }
+
+    #[tokio::test]
+    async fn repairs_missing_model_preset_references() {
+        let db = Db::connect_in_memory().await.unwrap();
+        let (_profile, workspace) = db.ensure_bootstrap().await.unwrap();
+        let provider = Provider {
+            id: ProviderId::new(),
+            workspace_id: workspace.id,
+            name: "provider".into(),
+            kind: ProviderKind::OpenAiCompatible,
+            base_url: "http://localhost".into(),
+            secret_ref: None,
+            enabled: true,
+            created_at: Utc::now(),
+        };
+        db.insert_provider(&provider).await.unwrap();
+        let preset = ModelPreset {
+            id: ModelPresetId::new(),
+            workspace_id: workspace.id,
+            provider_id: provider.id,
+            model_id: None,
+            name: "valid".into(),
+            model_name: "valid".into(),
+            capabilities: vec![CapabilityTag::Text],
+            temperature: None,
+            system_prompt: None,
+            in_random_pool: true,
+            enabled: true,
+            created_at: Utc::now(),
+        };
+        db.insert_model_preset(&preset).await.unwrap();
+        let missing = ModelPresetId::new();
+
+        let (empty_conversation, empty_branch) =
+            tree::create_conversation(workspace.id, "empty", ConversationMode::Chat);
+        let empty_settings = ConversationSettings {
+            conversation_id: empty_conversation.id,
+            mode: ConversationMode::Chat,
+            system_prompt: None,
+            temperature: None,
+            model_preset_ids: vec![missing],
+            candidate_pool: vec![missing],
+            slot_count: 1,
+            arena_kind: None,
+            arena_category: None,
+            max_concurrency: 1,
+            image_size: None,
+            image_aspect_ratio: None,
+        };
+        db.insert_conversation(&empty_conversation, &empty_branch, &empty_settings)
+            .await
+            .unwrap();
+
+        let (mixed_conversation, mixed_branch) =
+            tree::create_conversation(workspace.id, "mixed", ConversationMode::Sbs);
+        let mixed_settings = ConversationSettings {
+            conversation_id: mixed_conversation.id,
+            mode: ConversationMode::Sbs,
+            system_prompt: None,
+            temperature: None,
+            model_preset_ids: vec![missing, preset.id],
+            candidate_pool: vec![missing, preset.id],
+            slot_count: 2,
+            arena_kind: None,
+            arena_category: None,
+            max_concurrency: 2,
+            image_size: None,
+            image_aspect_ratio: None,
+        };
+        db.insert_conversation(&mixed_conversation, &mixed_branch, &mixed_settings)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            db.count_conversations_using_model_presets(workspace.id, &[missing])
+                .await
+                .unwrap(),
+            2
+        );
+        db.repair_missing_model_preset_references(workspace.id)
+            .await
+            .unwrap();
+
+        let repaired_empty = db
+            .get_settings(empty_conversation.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(repaired_empty.model_preset_ids.is_empty());
+        assert!(repaired_empty.candidate_pool.is_empty());
+        assert_eq!(repaired_empty.slot_count, 0);
+
+        let repaired_mixed = db
+            .get_settings(mixed_conversation.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(repaired_mixed.model_preset_ids, vec![preset.id]);
+        assert_eq!(repaired_mixed.candidate_pool, vec![preset.id]);
+        assert_eq!(repaired_mixed.slot_count, 1);
+    }
+
+    #[tokio::test]
+    async fn usage_metrics_roundtrip_for_conversation_and_workspace() {
+        let db = Db::connect_in_memory().await.unwrap();
+        let (_profile, workspace) = db.ensure_bootstrap().await.unwrap();
+        let provider = Provider {
+            id: ProviderId::new(),
+            workspace_id: workspace.id,
+            name: "provider".into(),
+            kind: ProviderKind::OpenAiCompatible,
+            base_url: "http://localhost".into(),
+            secret_ref: None,
+            enabled: true,
+            created_at: Utc::now(),
+        };
+        db.insert_provider(&provider).await.unwrap();
+        let preset = ModelPreset {
+            id: ModelPresetId::new(),
+            workspace_id: workspace.id,
+            provider_id: provider.id,
+            model_id: None,
+            name: "model".into(),
+            model_name: "model".into(),
+            capabilities: vec![CapabilityTag::Text],
+            temperature: None,
+            system_prompt: None,
+            in_random_pool: true,
+            enabled: true,
+            created_at: Utc::now(),
+        };
+        db.insert_model_preset(&preset).await.unwrap();
+        let (conversation, branch) =
+            tree::create_conversation(workspace.id, "metrics", ConversationMode::Chat);
+        db.insert_conversation(
+            &conversation,
+            &branch,
+            &ConversationSettings {
+                conversation_id: conversation.id,
+                mode: ConversationMode::Chat,
+                system_prompt: None,
+                temperature: None,
+                model_preset_ids: vec![preset.id],
+                candidate_pool: vec![preset.id],
+                slot_count: 1,
+                arena_kind: None,
+                arena_category: None,
+                max_concurrency: 1,
+                image_size: None,
+                image_aspect_ratio: None,
+            },
+        )
+        .await
+        .unwrap();
+        let user = tree::create_user_message(conversation.id, branch.id, None);
+        db.insert_message(&user, &[ContentBlock::text("hello")])
+            .await
+            .unwrap();
+        let round = tree::create_round(conversation.id, branch.id, user.id);
+        db.insert_round(
+            &round,
+            &RoundSnapshot {
+                round_id: round.id,
+                mode: ConversationMode::Chat,
+                system_prompt: None,
+                temperature: None,
+                model_preset_ids: vec![preset.id],
+                arena_kind: None,
+                arena_category: None,
+                image_size: None,
+                image_aspect_ratio: None,
+                created_at: Utc::now(),
+            },
+        )
+        .await
+        .unwrap();
+        let candidate =
+            tree::create_candidate(round.id, "A", preset.id, provider.id, "model", false);
+        db.insert_candidate(&candidate).await.unwrap();
+        db.insert_usage(&UsageRecord {
+            candidate_id: candidate.id,
+            prompt_tokens: Some(11),
+            completion_tokens: Some(23),
+            output_tokens: Some(17),
+            total_tokens: Some(34),
+            cost_usd: Some(0.02),
+            latency_ms: Some(3429),
+            ttft_ms: Some(3421),
+            reasoning_tokens: Some(6),
+            reasoning_duration_ms: Some(3421),
+        })
+        .await
+        .unwrap();
+
+        for usage in [
+            db.list_usage_for_conversation(conversation.id)
+                .await
+                .unwrap(),
+            db.list_usage_for_workspace(workspace.id).await.unwrap(),
+        ] {
+            assert_eq!(usage.len(), 1);
+            assert_eq!(usage[0].output_tokens, Some(17));
+            assert_eq!(usage[0].reasoning_tokens, Some(6));
+            assert_eq!(usage[0].reasoning_duration_ms, Some(3421));
+            assert_eq!(usage[0].ttft_ms, Some(3421));
+        }
     }
 }

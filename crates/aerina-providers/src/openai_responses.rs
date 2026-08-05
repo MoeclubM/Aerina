@@ -181,10 +181,10 @@ impl crate::ModelProvider for OpenAiResponsesProvider {
             self.client.post(self.responses_url()).json(&body),
             &self.config.api_key,
         );
+        let started = Instant::now();
         let response = req.send().await?.error_for_status()?;
         let candidate_id = candidate_id.to_string();
         let slot_label = slot_label.to_string();
-        let started = Instant::now();
         let mut first_token_at: Option<Instant> = None;
 
         let stream = async_stream::stream! {
@@ -261,9 +261,6 @@ impl crate::ModelProvider for OpenAiResponsesProvider {
                         | "response.output_item.reasoning.delta" => {
                             if let Some(delta) = parsed.get("delta").and_then(|v| v.as_str()) {
                                 if !delta.is_empty() {
-                                    if first_token_at.is_none() {
-                                        first_token_at = Some(Instant::now());
-                                    }
                                     yield GenerationEvent::ThinkingDelta {
                                         candidate_id: candidate_id.clone(),
                                         delta: delta.to_string(),
@@ -414,6 +411,7 @@ impl crate::ModelProvider for OpenAiResponsesProvider {
                 usage: UsageReport {
                     prompt_tokens,
                     completion_tokens,
+                    output_tokens: None,
                     total_tokens,
                     cost_usd: None,
                     latency_ms: Some(latency_ms),
