@@ -20,6 +20,9 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 const message = ref<string | null>(null);
 const session = ref<SessionInfo | null>(null);
+const creatingProfile = ref(false);
+const newProfileName = ref("");
+const creating = ref(false);
 const stats = ref<StatsSummary | null>(null);
 const activity = ref<ActivityDay[]>([]);
 const backups = ref<Awaited<ReturnType<typeof api.listBackups>>>([]);
@@ -197,6 +200,42 @@ function exportStats() {
   URL.revokeObjectURL(url);
 }
 
+function profileInitial(name: string) {
+  const n = name.trim() || "?";
+  return n.slice(0, 1).toUpperCase();
+}
+
+async function onCreateProfile() {
+  const name = newProfileName.value.trim();
+  if (!name) {
+    error.value = t("profile.nameRequired");
+    return;
+  }
+  creating.value = true;
+  error.value = null;
+  try {
+    session.value = await api.createProfile({ display_name: name });
+    newProfileName.value = "";
+    creatingProfile.value = false;
+    window.dispatchEvent(new CustomEvent("aerina:session-changed"));
+  } catch (e) {
+    error.value = errMessage(e);
+  } finally {
+    creating.value = false;
+  }
+}
+
+async function onSwitchProfile(id: string) {
+  if (id === profile.value?.id) return;
+  error.value = null;
+  try {
+    session.value = await api.switchProfile(id);
+    window.dispatchEvent(new CustomEvent("aerina:session-changed"));
+  } catch (e) {
+    error.value = errMessage(e);
+  }
+}
+
 function onSessionChanged() {
   void refresh();
 }
@@ -232,7 +271,7 @@ watch(
 
             </p>
             <div class="profile-links">
-              <button type="button" class="link-btn" @click="router.push('/settings/appearance')">
+              <button type="button" class="link-btn" @click="router.push('/settings/profile')">
                 {{ t("profile.edit") }}
               </button>
             </div>
@@ -253,6 +292,58 @@ watch(
 
       <div v-if="error" class="banner error">{{ error }}</div>
       <div v-if="message" class="banner info">{{ message }}</div>
+
+      <section class="surface">
+        <div class="surface-head">
+          <div>
+            <div class="surface-title">{{ t("profile.switch") }}</div>
+            <div class="surface-desc">{{ t("profile.emptyHint") }}</div>
+          </div>
+        </div>
+        <div class="profile-switch-list">
+          <button
+            v-for="p in session?.profiles || []"
+            :key="p.id"
+            type="button"
+            class="profile-switch-row"
+            :class="{ active: p.id === profile?.id }"
+            @click="onSwitchProfile(p.id)"
+          >
+            <span class="profile-switch-avatar">{{ profileInitial(p.display_name) }}</span>
+            <span class="profile-switch-name">{{ p.display_name }}</span>
+            <v-icon v-if="p.id === profile?.id" icon="mdi-check" size="18" class="profile-switch-check" />
+          </button>
+          <div v-if="creatingProfile" class="profile-create-row">
+            <input
+              v-model="newProfileName"
+              class="profile-create-input"
+              type="text"
+              :placeholder="t('profile.createPlaceholder')"
+              autocomplete="off"
+              autofocus
+              @keydown.enter.prevent="onCreateProfile"
+              @keydown.esc.prevent="creatingProfile = false"
+            />
+            <button type="button" class="btn-ghost" @click="creatingProfile = false">
+              {{ t("common.cancel") }}
+            </button>
+            <button type="button" class="btn-primary" :disabled="creating" @click="onCreateProfile">
+              {{ t("common.save") }}
+            </button>
+          </div>
+          <button
+            v-else
+            type="button"
+            class="profile-switch-row action"
+            @click="creatingProfile = true; error = null"
+          >
+            <span class="profile-switch-avatar add">
+              <v-icon icon="mdi-account-plus-outline" size="18" />
+            </span>
+            <span class="profile-switch-name">{{ t("profile.create") }}</span>
+          </button>
+        </div>
+      </section>
 
       <section class="surface">
         <div class="surface-head">
@@ -489,6 +580,99 @@ watch(
   color: rgba(var(--v-theme-on-surface), 0.55);
 }
 
+.profile-switch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.profile-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface));
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.16s ease, transform 100ms ease-out;
+}
+.profile-switch-row:hover,
+.profile-switch-row:focus-visible {
+  outline: none;
+  background: rgba(var(--v-theme-on-surface), 0.05);
+}
+.profile-switch-row:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: -2px;
+}
+.profile-switch-row:active {
+  transform: scale(0.98);
+}
+.profile-switch-row.active {
+  background: rgba(var(--v-theme-primary), 0.1);
+}
+.profile-switch-row.action {
+  color: rgb(var(--v-theme-primary));
+}
+.profile-switch-avatar {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(var(--v-theme-primary), 0.14);
+  color: rgb(var(--v-theme-primary));
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.profile-switch-avatar.add {
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  color: rgb(var(--v-theme-primary));
+}
+.profile-switch-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.profile-switch-check {
+  flex: 0 0 auto;
+  color: rgb(var(--v-theme-primary));
+}
+.profile-create-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 2px;
+}
+.profile-create-input {
+  min-width: 0;
+  flex: 1;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(var(--v-border-color), 0.45);
+  background: rgba(var(--v-theme-on-surface), 0.03);
+  color: rgb(var(--v-theme-on-surface));
+  font: inherit;
+  font-size: 0.9rem;
+  outline: none;
+}
+.profile-create-input:focus {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 3px rgb(var(--v-theme-primary) / 0.12);
+}
+
 .heatmap-wrap {
   overflow-x: auto;
   padding-bottom: 4px;
@@ -645,10 +829,39 @@ watch(
 
 @media (max-width: 600px) {
   .profile-inner {
-    padding: 18px 14px 36px;
+    padding: 12px 14px 32px;
+    gap: 12px;
+  }
+  .profile-avatar-lg {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    font-size: 1.25rem;
+  }
+  .profile-name {
+    font-size: 1.2rem;
   }
   .profile-hero-actions {
     width: 100%;
+  }
+  .profile-hero-actions .btn-primary,
+  .profile-hero-actions .btn-secondary,
+  .profile-hero-actions .btn-ghost {
+    flex: 1 1 auto;
+  }
+  .heatmap-wrap {
+    margin-inline: -4px;
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .profile-create-row {
+    flex-wrap: wrap;
+  }
+  .profile-create-input {
+    flex: 1 1 100%;
   }
 }
 </style>

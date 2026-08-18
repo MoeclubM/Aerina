@@ -1,0 +1,187 @@
+/* ==========================================================================
+   Aerina Liquid Glass — 可复用玻璃组件库
+   自包含玻璃材质变量 + 工具类 + 底栏/按钮。可独立拷贝到任意项目。
+   在 Aerina 内由 --miuix-* 主题变量驱动，缺省时回退到内置值。
+   ========================================================================== */
+
+:root {
+  --aerina-glass-tint: rgb(255 255 255 / 30%);
+  --aerina-glass-bg: color-mix(in srgb, var(--miuix-surface-container, #ffffff) 52%, transparent);
+  --aerina-glass-hi: linear-gradient(180deg, rgb(255 255 255 / 58%) 0%, rgb(255 255 255 / 18%) 40%, rgb(255 255 255 / 4%) 68%, transparent 92%);
+  --aerina-glass-lens: blur(26px) saturate(185%) brightness(1.05) contrast(1.03);
+  --aerina-glass-inner: inset 0 1px 0 rgb(255 255 255 / 82%), inset 0 -1px 0 rgb(0 0 0 / 7%);
+  --aerina-glass-edge: rgb(255 255 255 / 68%);
+  --aerina-glass-shadow: 0 8px 30px rgb(0 0 0 / 15%);
+  --aerina-glass-radius: 18px;
+  --aerina-glass-on: rgb(24 24 27);
+  --aerina-glass-muted: rgb(24 24 27 / 55%);
+}
+
+.v-theme--dark {
+  --aerina-glass-tint: rgb(16 22 34 / 38%);
+  --aerina-glass-bg: color-mix(in srgb, var(--miuix-surface-container, #242424) 60%, transparent);
+  --aerina-glass-hi: linear-gradient(180deg, rgb(255 255 255 / 15%) 0%, rgb(255 255 255 / 5%) 40%, transparent 72%);
+  --aerina-glass-lens: blur(28px) saturate(165%) brightness(1.03);
+  --aerina-glass-inner: inset 0 1px 0 rgb(255 255 255 / 15%), inset 0 -1px 0 rgb(0 0 0 / 32%);
+  --aerina-glass-edge: rgb(255 255 255 / 13%);
+  --aerina-glass-shadow: 0 8px 30px rgb(0 0 0 / 52%);
+  --aerina-glass-on: rgb(244 247 251);
+  --aerina-glass-muted: rgb(244 247 251 / 55%);
+}
+
+/* ---------- 玻璃表面工具类 ---------- */
+.aerina-glass {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--aerina-glass-radius, 18px);
+  background: var(--aerina-glass-hi), var(--aerina-glass-bg);
+  border: 1px solid var(--aerina-glass-edge);
+  box-shadow: var(--aerina-glass-inner), var(--aerina-glass-shadow);
+  -webkit-backdrop-filter: var(--aerina-glass-lens);
+  backdrop-filter: var(--aerina-glass-lens);
+}
+
+/* ---------- 玻璃按钮 ---------- */
+.aerina-glass-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--aerina-glass-radius, 14px);
+  background: var(--aerina-glass-hi), var(--aerina-glass-bg);
+  border: 1px solid var(--aerina-glass-edge);
+  box-shadow: var(--aerina-glass-inner), var(--aerina-glass-shadow);
+  -webkit-backdrop-filter: var(--aerina-glass-lens);
+  backdrop-filter: var(--aerina-glass-lens);
+  color: var(--aerina-glass-on);
+  font: inherit;
+  letter-spacing: 0;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, color 0.12s ease;
+}
+.aerina-glass-btn:hover {
+  background: var(--aerina-glass-hi), color-mix(in srgb, var(--aerina-glass-bg) 92%, white);
+}
+.aerina-glass-btn:active {
+  transform: scale(0.96);
+  box-shadow: inset 0 2px 6px rgb(0 0 0 / 12%);
+}
+.aerina-glass-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ---------- 浮动底栏（SukiSU Liquid Glass Style） ---------- */
+.aerina-float-bar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 1004;
+  display: flex;
+  align-items: stretch;
+  box-sizing: border-box;
+  width: min(calc(100vw - 28px), 400px);
+  height: 68px;
+  padding: 5px 8px;
+  gap: 4px;
+  border-radius: 999px;
+  background: var(--aerina-glass-hi), var(--aerina-glass-bg);
+  border: 1px solid var(--aerina-glass-edge);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 40%), 0 10px 30px rgb(0 0 0 / 18%);
+  -webkit-backdrop-filter: var(--aerina-glass-lens);
+  backdrop-filter: var(--aerina-glass-lens);
+  user-select: none;
+}
+.aerina-float-bar__indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--aerina-glass-hi), var(--aerina-glass-bg);
+  border: 1px solid var(--aerina-glass-edge);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 45%), 0 4px 14px rgb(0 0 0 / 14%);
+  -webkit-backdrop-filter: var(--aerina-glass-lens);
+  backdrop-filter: var(--aerina-glass-lens);
+  pointer-events: none;
+  transition:
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.aerina-float-bar__item {
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--aerina-glass-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  box-sizing: border-box;
+  transition: color 0.18s ease;
+}
+.aerina-float-bar__item.is-active {
+  color: var(--aerina-accent, var(--aerina-glass-on));
+}
+.aerina-float-bar__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  line-height: 0;
+  flex: 0 0 auto;
+}
+.aerina-float-bar__label {
+  font-size: 10.5px;
+  line-height: 13px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .aerina-float-bar__indicator,
+  .aerina-float-bar__item {
+    transition: none;
+  }
+}
+
+/* ---------- 降低动态效果时可关闭玻璃 ---------- */
+@media (prefers-reduced-transparency: reduce) {
+  :root,
+  .v-theme--light,
+  .v-theme--dark {
+    --aerina-glass-bg: var(--miuix-surface-container, rgb(var(--v-theme-surface, 255 255 255)));
+    --aerina-glass-hi: none;
+    --aerina-glass-tint: none;
+    --aerina-glass-lens: none;
+    --aerina-glass-inner: none;
+    --aerina-glass-edge: var(--miuix-divider, rgb(var(--v-theme-outline, 216 216 216)));
+    --aerina-glass-shadow: none;
+  }
+}
+/* ---------- Apple Liquid Glass spring tokens ---------- */
+:root {
+  --apple-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --apple-spring-gentle: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --apple-spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --apple-press: 120ms cubic-bezier(0.22, 1, 0.36, 1);
+  --apple-enter: 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  --apple-exit: 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}

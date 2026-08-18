@@ -3,10 +3,12 @@ defineOptions({ name: "RankingPage" });
 
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
 import { api, errMessage } from "../api";
 
 const props = withDefaults(defineProps<{ active?: boolean }>(), { active: true });
 const { t } = useI18n();
+const router = useRouter();
 const loading = ref(false);
 const error = ref<string | null>(null);
 const board = ref<Awaited<ReturnType<typeof api.leaderboard>>>([]);
@@ -102,7 +104,10 @@ watch(
           <span>{{ error }}</span>
           <button type="button" class="btn-secondary" @click="refresh">{{ t("common.retry") }}</button>
         </div>
-        <div v-else-if="!ranked.length" class="rank-state">{{ t("stats.emptyBoard") }}</div>
+        <div v-else-if="!ranked.length" class="rank-state">
+          <span>{{ t("stats.emptyBoard") }}</span>
+          <button type="button" class="btn-secondary" @click="router.push('/')">{{ t("nav.chat") }}</button>
+        </div>
         <template v-else>
           <table class="rank-table">
             <thead>
@@ -258,6 +263,7 @@ watch(
   padding: 22px 18px;
   box-sizing: border-box;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 9px;

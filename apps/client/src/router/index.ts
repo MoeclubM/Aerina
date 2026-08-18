@@ -79,6 +79,12 @@ export const router = createRouter({
       meta: { title: "HTML Preview" },
     },
     {
+      path: "/glass-demo",
+      name: "glass-demo",
+      component: () => import("../pages/GlassDemoPage.vue"),
+      meta: { title: "Liquid Glass Demo" },
+    },
+    {
       path: "/login",
       name: "login",
       component: () => import("../pages/LoginPage.vue"),

@@ -1,5 +1,6 @@
 use super::*;
-use std::collections::HashMap;
+use aerina_domain::descendant_ids_inclusive;
+use std::collections::{HashMap, HashSet};
 
 impl Db {
     pub async fn insert_message(
@@ -104,6 +105,111 @@ impl Db {
         .fetch_all(&self.pool)
         .await?;
         self.hydrate_messages(rows).await
+    }
+
+    /// Walk `parent_message_id` from `head_id`, including messages on ancestor branches.
+    pub async fn list_message_path(
+        &self,
+        head_id: Option<MessageNodeId>,
+    ) -> Result<Vec<(MessageNode, Vec<ContentBlock>)>> {
+        let mut path = Vec::new();
+        let mut current = head_id;
+        let mut seen = HashSet::new();
+        while let Some(id) = current {
+            if !seen.insert(id) {
+                break;
+            }
+            match self.get_message(id).await? {
+                Some((message, blocks)) => {
+                    current = message.parent_message_id;
+                    path.push((message, blocks));
+                }
+                None => break,
+            }
+        }
+        path.reverse();
+        Ok(path)
+    }
+
+    /// Delete `from_id` and every descendant on this branch, plus related rounds.
+    pub async fn truncate_branch_from(
+        &self,
+        branch_id: BranchId,
+        from_id: MessageNodeId,
+    ) -> Result<()> {
+        let messages = self.list_messages(branch_id).await?;
+        let nodes = messages
+            .iter()
+            .map(|(message, _)| message.clone())
+            .collect::<Vec<_>>();
+        let drop_ids = descendant_ids_inclusive(&nodes, from_id);
+        if drop_ids.is_empty() {
+            return Ok(());
+        }
+        let drop_set = drop_ids.iter().copied().collect::<HashSet<_>>();
+
+        let mut round_ids = HashSet::new();
+        for (message, _) in &messages {
+            if drop_set.contains(&message.id) {
+                if let Some(round_id) = message.round_id {
+                    round_ids.insert(round_id);
+                }
+            }
+        }
+        if let Some((_, conversation_id)) = messages
+            .first()
+            .map(|(message, _)| (message.branch_id, message.conversation_id))
+        {
+            for round in self.list_rounds_for_conversation(conversation_id).await? {
+                if round.branch_id == branch_id && drop_set.contains(&round.user_message_id) {
+                    round_ids.insert(round.id);
+                }
+            }
+        }
+
+        let mut tx = self.pool.begin().await?;
+        for round_id in &round_ids {
+            sqlx::query(
+                "DELETE FROM usage_records WHERE candidate_id IN (
+                    SELECT id FROM candidate_generations WHERE round_id = ?
+                )",
+            )
+            .bind(id_str(*round_id))
+            .execute(&mut *tx)
+            .await?;
+            sqlx::query("DELETE FROM arena_votes WHERE round_id = ?")
+                .bind(id_str(*round_id))
+                .execute(&mut *tx)
+                .await?;
+            sqlx::query("DELETE FROM ranking_events WHERE round_id = ?")
+                .bind(id_str(*round_id))
+                .execute(&mut *tx)
+                .await?;
+            sqlx::query("DELETE FROM candidate_generations WHERE round_id = ?")
+                .bind(id_str(*round_id))
+                .execute(&mut *tx)
+                .await?;
+            sqlx::query("DELETE FROM round_snapshots WHERE round_id = ?")
+                .bind(id_str(*round_id))
+                .execute(&mut *tx)
+                .await?;
+            sqlx::query("DELETE FROM rounds WHERE id = ?")
+                .bind(id_str(*round_id))
+                .execute(&mut *tx)
+                .await?;
+        }
+        for message_id in &drop_ids {
+            sqlx::query("DELETE FROM content_blocks WHERE message_id = ?")
+                .bind(id_str(*message_id))
+                .execute(&mut *tx)
+                .await?;
+            sqlx::query("DELETE FROM message_nodes WHERE id = ?")
+                .bind(id_str(*message_id))
+                .execute(&mut *tx)
+                .await?;
+        }
+        tx.commit().await?;
+        Ok(())
     }
 
     /// Latest `limit` messages in chronological order, plus whether older messages exist.

@@ -5,6 +5,7 @@ import { useRoute, useRouter } from "vue-router";
 import ChatPage from "../pages/ChatPage.vue";
 import ConversationSidebar from "../components/ConversationSidebar.vue";
 import AgentEntryPanel from "../components/AgentEntryPanel.vue";
+import { FloatingBottomBar } from "../lib/glass";
 
 const ProfilePage = defineAsyncComponent(() => import("../pages/ProfilePage.vue"));
 const RankingPage = defineAsyncComponent(() => import("../pages/RankingPage.vue"));
@@ -21,9 +22,25 @@ const agentSheetOpen = ref(false);
 
 const items = computed(() => [
   { key: "chat", to: "/", title: t("nav.chat"), icon: "mdi-message-text-outline", exact: true },
-  { key: "agent", title: t("chat.agentTab"), icon: "mdi-robot-outline", reserved: true },
+  { key: "ranking", to: "/ranking", title: t("nav.ranking"), icon: "mdi-trophy-outline" },
+  { key: "profile", to: "/profile", title: t("nav.profile"), icon: "mdi-account-circle-outline" },
   { key: "settings", to: "/settings", title: t("nav.settings"), icon: "mdi-cog-outline" },
 ]);
+
+const mobileBarItems = computed(() =>
+  items.value.map((item) => ({ icon: item.icon, label: item.title })),
+);
+
+const mobileTabIndex = computed({
+  get() {
+    const idx = items.value.findIndex((item) => mobileItemActive(item));
+    return idx >= 0 ? idx : 0;
+  },
+  set(index: number) {
+    const item = items.value[index];
+    if (item) activateMobileItem(item);
+  },
+});
 
 const seen = reactive({ chat: true, ranking: false, profile: false, settings: false });
 
@@ -110,17 +127,23 @@ onUnmounted(() => {
 
 <template>
     <!-- Mobile top bar: compact brand header with page-specific actions -->
-  <v-app-bar v-if="mobile && page !== 'chat' && !mobileSettingsSubpage && !mobileSubpageActive" flat density="compact" class="mobile-app-bar">
+  <v-app-bar
+    v-if="mobile && page !== 'chat' && !mobileSettingsSubpage && !mobileSubpageActive"
+    flat
+    density="comfortable"
+    class="mobile-app-bar"
+  >
     <template #prepend>
-      <img class="mobile-app-logo ms-3" src="/brand/logo-mark.png" alt="" />
+      <img class="mobile-app-logo" src="/brand/logo-mark.png" alt="" />
     </template>
 
-
-    <v-app-bar-title class="text-body-1 font-weight-bold text-truncate px-1">
+    <v-app-bar-title class="mobile-app-bar-title text-truncate">
       {{ mobileTitle }}
     </v-app-bar-title>
 
-
+    <template #append>
+      <span class="mobile-app-bar-spacer" aria-hidden="true" />
+    </template>
   </v-app-bar>
 
   <div class="app-shell-frame">
@@ -161,20 +184,11 @@ onUnmounted(() => {
     </v-main>
   </div>
 
-  <!-- Xiaomi-style mobile bottom navigation: 3 tabs -->
-  <nav v-if="showMobileTabs" class="aerina-tab-bar">
-    <button
-      v-for="item in items"
-      :key="item.key"
-      type="button"
-      class="tab-bar-item"
-      :class="{ active: mobileItemActive(item), reserved: item.reserved }"
-      @click="activateMobileItem(item)"
-    >
-      <v-icon :icon="item.icon" size="22" />
-      <span class="tab-bar-label">{{ item.title }}</span>
-    </button>
-  </nav>
+  <FloatingBottomBar
+    v-if="showMobileTabs"
+    v-model="mobileTabIndex"
+    :items="mobileBarItems"
+  />
 
   <v-bottom-sheet v-if="mobile" v-model="agentSheetOpen" class="agent-entry-sheet-wrap">
     <AgentEntryPanel @close="agentSheetOpen = false" />
@@ -188,6 +202,12 @@ onUnmounted(() => {
 .agent-entry-sheet-wrap :deep(.v-bottom-sheet__content) {
   width: min(100%, 520px);
   margin-inline: auto;
+}
+.mobile-app-bar-spacer {
+  display: block;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
 }
 .app-shell-frame {
   flex: 1 1 auto;

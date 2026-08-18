@@ -28,6 +28,7 @@ const emit = defineEmits<{
   createWithRole: [roleId: string];
   export: [id: string];
   remove: [id: string];
+  import: [];
 }>();
 
 const { t } = useI18n();
@@ -60,7 +61,9 @@ function activateRuntime(item: { to?: string; reserved?: boolean }) {
   if (item.to) void router.push(item.to);
 }
 
-
+const currentRuntime = computed(
+  () => runtimeItems.value.find((item) => runtimeActive(item)) ?? runtimeItems.value[0],
+);
 
 const activeRoleId = ref<string>(roleStore.defaultRoleId);
 const SIDEBAR_MIN_WIDTH = 232;
@@ -83,6 +86,18 @@ const session = ref<SessionInfo | null>(null);
 const avatarUrl = ref<string | null>(null);
 const menuOpen = ref(false);
 const accountError = ref<string | null>(null);
+const creatingProfile = ref(false);
+const newProfileName = ref("");
+const creating = ref(false);
+
+const destItems = computed(() => [
+  { key: "ranking", to: "/ranking", title: t("nav.ranking"), icon: "mdi-trophy-outline" },
+  { key: "settings", to: "/settings", title: t("nav.settings"), icon: "mdi-cog-outline" },
+]);
+
+function destActive(to: string) {
+  return route.path === to || route.path.startsWith(`${to}/`);
+}
 
 const profile = computed(() => session.value?.profile ?? null);
 const initial = computed(() => {
@@ -110,6 +125,28 @@ async function loadSession() {
     await refreshAvatar();
   } catch (e) {
     console.error(e);
+  }
+}
+
+async function onCreateProfile() {
+  const name = newProfileName.value.trim();
+  if (!name) {
+    accountError.value = t("profile.nameRequired");
+    return;
+  }
+  creating.value = true;
+  accountError.value = null;
+  try {
+    session.value = await api.createProfile({ display_name: name });
+    newProfileName.value = "";
+    creatingProfile.value = false;
+    menuOpen.value = false;
+    await refreshAvatar();
+    window.dispatchEvent(new CustomEvent("aerina:session-changed"));
+  } catch (e) {
+    accountError.value = errMessage(e);
+  } finally {
+    creating.value = false;
   }
 }
 
@@ -161,7 +198,7 @@ function resetSidebarWidth() {
 
 onMounted(() => {
   window.addEventListener("aerina:sidebar-width", syncSidebarWidth);
-  void loadSession();
+  if (!props.mobile) void loadSession();
 });
 
 onUnmounted(() => {
@@ -252,56 +289,82 @@ function createNew() {
     :class="{ mobile, resizing, 'navigation-only': navigationOnly }"
     :style="mobile ? {} : { width: sidebarWidth + 'px', flex: `0 0 ${sidebarWidth}px` }"
   >
-    <!-- Header: Logo Brand & Titlebar Drag Region -->
+    <!-- Header: Logo Brand & compact runtime switch -->
     <div v-if="!mobile" class="unified-header" data-tauri-drag-region>
       <div class="unified-brand">
         <img class="unified-logo" src="/brand/logo-mark.png" alt="Aerina" />
         <span class="unified-title font-weight-bold">Aerina</span>
       </div>
+      <v-menu location="bottom end" :offset="4" content-class="runtime-mode-overlay">
+        <template #activator="{ props: runtimeProps }">
+          <button
+            type="button"
+            class="unified-runtime-trigger"
+            v-bind="runtimeProps"
+            data-tauri-drag-region="false"
+            :title="t('chat.runtimeMode')"
+            :aria-label="t('chat.runtimeMode')"
+          >
+            <v-icon :icon="currentRuntime.icon" size="15" />
+            <v-icon icon="mdi-chevron-down" size="12" class="unified-runtime-chevron" />
+          </button>
+        </template>
+        <nav class="unified-runtime-menu" :aria-label="t('chat.runtimeMode')">
+          <div class="unified-runtime-menu-label">{{ t("chat.runtimeMode") }}</div>
+          <button
+            v-for="item in runtimeItems"
+            :key="item.key"
+            type="button"
+            class="unified-runtime-menu-item"
+            :class="{ active: runtimeActive(item), reserved: item.reserved }"
+            :aria-current="runtimeActive(item) ? 'page' : undefined"
+            @click="activateRuntime(item)"
+          >
+            <v-icon :icon="item.icon" size="16" />
+            <span class="unified-runtime-menu-item-label">{{ item.title }}</span>
+            <span v-if="item.badge" class="unified-runtime-badge">{{ item.badge }}</span>
+          </button>
+        </nav>
+      </v-menu>
     </div>
-
-    <nav v-if="!mobile" class="unified-runtime-nav" :aria-label="t('chat.runtimeMode')">
-      <div class="unified-runtime-label">{{ t("chat.runtimeMode") }}</div>
-      <div class="unified-runtime-switch">
-        <button
-          v-for="item in runtimeItems"
-          :key="item.key"
-          type="button"
-          class="unified-runtime-item"
-          :class="{ active: runtimeActive(item), reserved: item.reserved }"
-          :aria-current="runtimeActive(item) ? 'page' : undefined"
-          @click="activateRuntime(item)"
-        >
-          <v-icon :icon="item.icon" size="16" />
-          <span class="unified-runtime-item-label">{{ item.title }}</span>
-          <span v-if="item.badge" class="unified-runtime-badge">{{ item.badge }}</span>
-        </button>
-      </div>
-    </nav>
 
     <!-- Assistant directory and its conversation drill-down -->
     <div v-if="!navigationOnly" class="unified-scroll-body">
       <section v-if="sidebarView === 'assistants'" class="unified-assistant-section">
         <div class="assistant-pane-header">
-          <div>
-            <div class="sidebar-page-title">助手角色</div>
-            <div class="sidebar-page-subtitle">选择助手查看对应对话</div>
+          <div class="assistant-pane-heading">
+            <div class="sidebar-page-title">
+              {{ t("chat.assistantRoles") }}
+              <span v-if="mobile" class="assistant-pane-inline-count">{{ allAssistants.length }}</span>
+            </div>
+            <div v-if="!mobile" class="sidebar-page-subtitle">{{ t("chat.assistantRolesHint") }}</div>
           </div>
           <div class="assistant-pane-actions">
-            <span class="assistant-pane-count">{{ allAssistants.length }}</span>
+            <span v-if="!mobile" class="assistant-pane-count">{{ allAssistants.length }}</span>
+            <button
+              v-if="mobile"
+              type="button"
+              class="assistant-manage-btn conversation-header-icon"
+              :title="t('chat.importConversation')"
+              :aria-label="t('chat.importConversation')"
+              @click="emit('import')"
+            >
+              <v-icon icon="mdi-upload-outline" size="20" />
+            </button>
             <button
               type="button"
-              class="assistant-manage-btn"
+              class="assistant-manage-btn conversation-header-icon"
               :title="t('chat.manageAssistants')"
               :aria-label="t('chat.manageAssistants')"
               @click="router.push('/settings/assistants')"
             >
-              <v-icon icon="mdi-account-cog-outline" size="17" />
+              <v-icon icon="mdi-account-cog-outline" :size="mobile ? 20 : 17" />
             </button>
           </div>
         </div>
 
         <div class="assistant-chips-scroller">
+          <TransitionGroup name="apple-list">
           <button
             v-for="role in allAssistants"
             :key="role.id"
@@ -312,10 +375,11 @@ function createNew() {
           >
             <span class="assistant-chip-icon"><v-icon :icon="role.icon" size="15" /></span>
             <span class="chip-name">{{ role.name }}</span>
-            <span v-if="role.id === roleStore.defaultRoleId" class="chip-def-dot" title="默认助手" />
+            <span v-if="role.id === roleStore.defaultRoleId" class="chip-def-dot" :title="t('chat.defaultAssistant')" />
             <span class="chip-count">{{ countForRole(role.id) }}</span>
             <v-icon icon="mdi-chevron-right" size="16" class="assistant-chip-arrow" />
           </button>
+          </TransitionGroup>
         </div>
       </section>
 
@@ -323,7 +387,7 @@ function createNew() {
         <div class="conversation-pane-header">
           <button
             type="button"
-            class="sidebar-back-btn"
+            class="sidebar-back-btn conversation-header-icon"
             :title="t('common.back')"
             :aria-label="t('common.back')"
             @click="backToAssistants"
@@ -334,16 +398,29 @@ function createNew() {
             <span class="conversation-page-title">{{ activeRole.name }}</span>
             <span class="conversation-context">{{ t("nav.chat") }} · {{ activeRoleConversations.length }}</span>
           </div>
-          <v-btn
-            icon="mdi-plus"
-            variant="text"
-            density="comfortable"
-            size="small"
-            class="conversation-new-btn"
-            :title="newLabel"
-            :aria-label="newLabel"
-            @click="createNew"
-          />
+          <div class="conversation-pane-actions">
+            <v-btn
+              v-if="mobile"
+              icon="mdi-upload-outline"
+              variant="text"
+              density="comfortable"
+              size="small"
+              class="conversation-new-btn conversation-header-icon"
+              :title="t('chat.importConversation')"
+              :aria-label="t('chat.importConversation')"
+              @click="emit('import')"
+            />
+            <v-btn
+              icon="mdi-plus"
+              variant="text"
+              density="comfortable"
+              size="small"
+              class="conversation-new-btn conversation-header-icon"
+              :title="newLabel"
+              :aria-label="newLabel"
+              @click="createNew"
+            />
+          </div>
         </div>
 
         <div class="chat-search-row conversation-search-row">
@@ -362,6 +439,7 @@ function createNew() {
         </div>
 
         <div class="unified-conv-list">
+          <TransitionGroup name="apple-list">
           <template v-for="group in activeGroups" :key="group.key">
             <div class="conv-group-label">{{ group.label }}</div>
             <button
@@ -375,8 +453,8 @@ function createNew() {
               <div class="conv-item-main">
                 <div class="conv-item-title">{{ item.title }}</div>
                 <div class="conv-item-sub">
-                  <span class="conv-mode-dot" :class="item.mode === 'sbs' ? 'multi' : 'single'" />
-                  {{ item.mode === "sbs" ? multiLabel : singleLabel }}
+                  <span class="conv-mode-dot" :class="item.mode === 'arena' ? 'arena' : item.mode === 'sbs' ? 'multi' : 'single'" />
+                  {{ item.mode === "arena" ? t("nav.arena") : item.mode === "sbs" ? multiLabel : singleLabel }}
                 </div>
               </div>
               <div class="conv-item-actions" @click.stop>
@@ -402,28 +480,39 @@ function createNew() {
               </div>
             </button>
           </template>
+          </TransitionGroup>
 
           <div v-if="!activeRoleConversations.length" class="empty-conv-placeholder">
             <v-icon :icon="activeRole.icon" size="22" class="mb-1 text-medium-emphasis" />
-            <div class="text-body-2 font-weight-medium">暂无对话</div>
-            <div class="text-caption text-medium-emphasis mt-1">点击上方 + 新建对话</div>
+            <div class="text-body-2 font-weight-medium">{{ t("chat.emptyRoleConversations") }}</div>
+            <div class="text-caption text-medium-emphasis mt-1">{{ t("chat.emptyRoleConversationsHint") }}</div>
           </div>
         </div>
       </section>
     </div>
 
-    <!-- Footer: Settings next to the persistent user area -->
-    <div class="unified-footer border-t">
+    <div v-if="!mobile" class="unified-footer border-t">
       <button
-        v-if="!mobile"
+        v-if="!navigationOnly"
         type="button"
         class="unified-footer-settings"
-        :class="{ active: route.path === '/settings' || route.path.startsWith('/settings/') }"
-        :aria-current="route.path === '/settings' || route.path.startsWith('/settings/') ? 'page' : undefined"
-        @click="router.push('/settings')"
+        :title="t('chat.importConversation')"
+        @click="emit('import')"
       >
-        <v-icon icon="mdi-cog-outline" size="17" />
-        <span>{{ t("nav.settings") }}</span>
+        <v-icon icon="mdi-upload-outline" size="17" />
+        <span>{{ t("common.import") }}</span>
+      </button>
+      <button
+        v-for="dest in destItems"
+        :key="dest.key"
+        type="button"
+        class="unified-footer-settings"
+        :class="{ active: destActive(dest.to) }"
+        :aria-current="destActive(dest.to) ? 'page' : undefined"
+        @click="router.push(dest.to)"
+      >
+        <v-icon :icon="dest.icon" size="17" />
+        <span>{{ dest.title }}</span>
         <v-icon icon="mdi-chevron-right" size="15" class="ms-auto unified-footer-settings-arrow" />
       </button>
 
@@ -477,6 +566,28 @@ function createNew() {
               <span class="profile-menu-item-text">{{ p.display_name }}</span>
               <v-icon v-if="p.id === profile?.id" icon="mdi-check" size="14" class="profile-menu-check" />
             </button>
+            <div v-if="creatingProfile" class="profile-create-row">
+              <input
+                v-model="newProfileName"
+                class="profile-create-input"
+                type="text"
+                :placeholder="t('profile.createPlaceholder')"
+                @keydown.enter.prevent="onCreateProfile"
+                @keydown.esc.prevent="creatingProfile = false"
+              />
+              <button type="button" class="profile-create-save" :disabled="creating" @click="onCreateProfile">
+                {{ t("common.save") }}
+              </button>
+            </div>
+            <button
+              v-else
+              type="button"
+              class="profile-menu-item action"
+              @click="creatingProfile = true; accountError = null"
+            >
+              <v-icon icon="mdi-account-plus-outline" size="15" class="profile-menu-leading" />
+              <span class="profile-menu-item-text">{{ t("profile.create") }}</span>
+            </button>
           </div>
 
           <div class="profile-menu-divider" />
@@ -521,15 +632,14 @@ function createNew() {
       </v-menu>
     </div>
 
+    <div
+      v-if="!mobile"
+      class="sidebar-col-resizer"
+      :class="{ resizing }"
+      data-tauri-drag-region="false"
+      :title="t('chat.resizeSidebar')"
+      @mousedown.prevent="startResize"
+      @dblclick.prevent="resetSidebarWidth"
+    />
   </aside>
-
-  <!-- Dedicated flex gutter keeps resizing clear of list scrollbars and actions. -->
-  <div
-    v-if="!mobile"
-    class="sidebar-col-resizer"
-    :class="{ resizing }"
-    title="拖拽调整侧边栏宽度"
-    @mousedown.prevent="startResize"
-    @dblclick.prevent="resetSidebarWidth"
-  />
 </template>

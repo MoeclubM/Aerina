@@ -17,6 +17,7 @@ import {
   type ModelPreset,
   type SessionInfo,
   type UsageReport,
+  type VoteKind,
 } from "../api";
 import { buildTimeline, imagesOf, textOf, thinkingMetaOf, thinkingOf, usageOf } from "../composables/useMessageTimeline";
 import ThinkingBlock from "../components/ThinkingBlock.vue";
@@ -163,9 +164,9 @@ const systemPrompt = ref("");
 const editingId = ref<string | null>(null);
 const editDraft = ref("");
 const attachments = ref<string[]>([]);
-const addMenu = ref(false);
 const dragOver = ref(false);
 const pendingUser = ref<{ text: string; imageUrls: string[] } | null>(null);
+const resendingFrom = ref<string | null>(null);
 const showList = ref(true);
 const error = ref<string | null>(null);
 const imageUrls = ref<Record<string, string>>({});
@@ -210,7 +211,7 @@ type ViewRow =
   | { kind: "user"; key: string; messageId: string; text: string; cacheKey: string; imageIds: string[] }
   | { kind: "pending_user"; key: string; text: string; imageUrls: string[] }
   | { kind: "assistant"; key: string; messageId: string; text: string; thinking: string; cacheKey: string; imageIds: string[]; tokens?: number; promptTokens?: number; completionTokens?: number; outputTokens?: number; cachedTokens?: number; latency?: number; ttft?: number; thinkingTokens?: number; thinkingDurationMs?: number }
-  | { kind: "round"; key: string; selectedCandidateId?: string | null; usage: UsageView; candidates: CandView[] }
+  | { kind: "round"; key: string; roundId?: string | null; selectedCandidateId?: string | null; usage: UsageView; candidates: CandView[] }
   | { kind: "streaming"; key: string }
   | { kind: "error"; key: string; message: string };
 
@@ -284,6 +285,7 @@ const rows = computed<ViewRow[]>(() => {
       list.push({
         kind: "round",
         key: item.key,
+        roundId: item.roundId,
         selectedCandidateId: selectedIdCand,
         usage: usageView(item.roundId ? roundMeta.value.get(item.roundId)?.usage : undefined),
         candidates: item.messages.map((m, idx) => {
@@ -294,7 +296,10 @@ const rows = computed<ViewRow[]>(() => {
           const cid = m.message.candidate_id ?? "";
           const meta = cid ? candidateMeta.value.get(cid) : undefined;
           const usage = meta?.usage ?? usageOf(m);
-          const label = meta?.modelName || `${t("chat.candidate")} ${letter}`;
+          const hidden = pendingArenaRound(item.roundId, selectedIdCand);
+          const label = hidden
+            ? `${t("chat.anonymousModel")} ${meta?.slot || letter}`
+            : meta?.modelName || `${t("chat.candidate")} ${letter}`;
           return {
             messageId: m.message.id,
             candidateId: m.message.candidate_id,
@@ -303,7 +308,7 @@ const rows = computed<ViewRow[]>(() => {
             cacheKey: contentKey(m.message.id, text + "\0" + thinking),
             label,
             letter: meta?.slot || letter,
-            modelName: meta?.modelName,
+            modelName: hidden ? undefined : meta?.modelName,
             selected: !!selectedIdCand && cid === selectedIdCand,
             thinkingTokens: tmeta.tokens ?? usage?.reasoning_tokens,
             thinkingDurationMs: thinkingDuration(tmeta.durationMs ?? usage?.reasoning_duration_ms, usage),
@@ -317,6 +322,10 @@ const rows = computed<ViewRow[]>(() => {
         }),
       });
     }
+  }
+  if (resendingFrom.value) {
+    const cut = list.findIndex((row) => row.kind === "user" && row.messageId === resendingFrom.value);
+    if (cut >= 0) list.splice(cut);
   }
   if (pendingUser.value && stream.isStreaming && stream.conversationId === selectedId.value) {
     list.push({
@@ -342,18 +351,54 @@ const showThreadEmpty = computed(
     !(stream.isStreaming && stream.conversationId === selectedId.value),
 );
 
+const recs = computed(() => [t("chat.rec1"), t("chat.rec2"), t("chat.rec3"), t("chat.rec4")]);
+const arenaEnabled = ref(false);
+const arenaSlots = ref(2);
+const modelsBeforeArena = ref<string[]>([]);
+const revealedRoundIds = ref<Set<string>>(new Set());
+
+const arenaLive = computed(
+  () => arenaEnabled.value || detail.value?.conversation.mode === "arena",
+);
+const arenaPoolIds = computed(() => {
+  const pooled = presets.value.filter((preset) => preset.in_random_pool !== false).map((preset) => preset.id);
+  if (pooled.length) return pooled;
+  return presets.value.map((preset) => preset.id);
+});
+const arenaSlotCount = computed(() => Math.max(arenaSlots.value, 2));
+const imageGenMode = computed(() => {
+  const ids = arenaLive.value ? arenaPoolIds.value : selectedModels.value;
+  const selected = presets.value.filter((preset) => ids.includes(preset.id));
+  return selected.length > 0 && selected.every((preset) => preset.capabilities.includes("image_generation"));
+});
+const lastTurnKey = computed(() => {
+  for (let i = rows.value.length - 1; i >= 0; i -= 1) {
+    const row = rows.value[i];
+    if (row.kind === "assistant" || row.kind === "round") return row.key;
+  }
+  return null;
+});
+const composerPlaceholder = computed(() => {
+  if (imageGenMode.value) return t("chat.imagePlaceholder");
+  if (arenaLive.value || selectedModels.value.length > 1) return t("chat.multiPlaceholder");
+  return t("chat.placeholder");
+});
+
 
 const multiModel = computed(() => selectedModels.value.length > 1);
 const hasConversation = computed(() => !!selectedId.value);
 const canSend = computed(
   () =>
     !!selectedId.value &&
-    selectedModels.value.length > 0 &&
+    (arenaLive.value
+      ? arenaPoolIds.value.length >= arenaSlotCount.value
+      : selectedModels.value.length > 0) &&
     !stream.isStreaming &&
     (!!draft.value.trim() || attachments.value.length > 0),
 );
 
 const modelButtonLabel = computed(() => {
+  if (arenaLive.value) return t("chat.arenaChip", { n: arenaSlotCount.value });
   if (!selectedModels.value.length) return t("chat.selectModel");
   if (selectedModels.value.length === 1) {
     const p = presets.value.find((x) => x.id === selectedModels.value[0]);
@@ -506,6 +551,7 @@ async function refreshDetail() {
     hasMoreOlder.value = false;
     hasMoreNewer.value = false;
     pendingUser.value = null;
+    resendingFrom.value = null;
     return;
   }
   const page = await api.getConversation(selectedId.value, { limit: PAGE_SIZE });
@@ -518,9 +564,16 @@ async function refreshDetail() {
   selectedRoleId.value = roleStore.convRoles[page.conversation.id] || roleStore.defaultRoleId;
   titleDraft.value = page.conversation.title;
   const availablePresetIds = new Set(presets.value.map((preset) => preset.id));
-  selectedModels.value = (page.settings.model_preset_ids ?? []).filter((id) =>
-    availablePresetIds.has(id),
-  );
+  arenaEnabled.value = page.settings.mode === "arena";
+  arenaSlots.value = Math.max(2, page.settings.slot_count ?? 2);
+  if (page.settings.mode === "arena") {
+    if (!modelsBeforeArena.value.length) selectedModels.value = [];
+  } else {
+    selectedModels.value = (page.settings.model_preset_ids ?? []).filter((id) =>
+      availablePresetIds.has(id),
+    );
+    modelsBeforeArena.value = [];
+  }
   mobileCandidateIndex.value = 0;
   collectMedia(page.messages);
   await nextTick();
@@ -740,13 +793,30 @@ async function deleteConversation(id: string) {
 }
 
 async function applyModels() {
-  if (!selectedId.value || !selectedModels.value.length) return;
-  const mode = selectedModels.value.length > 1 ? "sbs" : "chat";
-  await api.setConversationModels(selectedId.value, selectedModels.value, mode);
+  if (!selectedId.value) return false;
+  if (arenaEnabled.value) {
+    const pool = arenaPoolIds.value;
+    if (pool.length < arenaSlotCount.value) {
+      error.value = t("chat.arenaPoolTooSmall");
+      return false;
+    }
+    await api.configureArena(
+      selectedId.value,
+      pool,
+      arenaSlotCount.value,
+      imageGenMode.value ? "image_gen" : "text",
+    );
+  } else {
+    if (!selectedModels.value.length) return false;
+    const mode = selectedModels.value.length > 1 ? "sbs" : "chat";
+    await api.setConversationModels(selectedId.value, selectedModels.value, mode);
+  }
   await refreshDetail();
+  return true;
 }
 
 function toggleModel(id: string) {
+  if (arenaLive.value) return;
   const set = new Set(selectedModels.value);
   if (set.has(id)) {
     if (set.size === 1) return;
@@ -775,6 +845,9 @@ async function saveSettings() {
     systemPrompt.value || null,
     temperature.value,
   );
+  if (arenaEnabled.value || detail.value?.conversation.mode === "arena") {
+    await applyModels();
+  }
   settingsOpen.value = false;
   await refreshDetail();
   await refreshConversations();
@@ -803,9 +876,19 @@ async function send() {
   pendingUser.value = { text: content, imageUrls: imgs };
   stream.begin(selectedId.value);
   try {
-    await applyModels();
+    const configured = await applyModels();
+    if (!configured) {
+      stream.reset();
+      pendingUser.value = null;
+      draft.value = content;
+      attachments.value = imgs;
+      await nextTick();
+      autoGrowComposer();
+      return;
+    }
     await api.sendMessage(selectedId.value, content, {
       image_data_urls: imgs.length ? imgs : undefined,
+      require_image: imageGenMode.value || undefined,
     });
     stream.finish();
     pendingUser.value = null;
@@ -821,13 +904,26 @@ async function send() {
 async function regenerate() {
   if (!selectedId.value) return;
   pinBottom.value = true;
+  const lastUser = [...rows.value].reverse().find((row) => row.kind === "user");
+  if (lastUser && lastUser.kind === "user") {
+    pendingUser.value = {
+      text: lastUser.text,
+      imageUrls: lastUser.imageIds.map((id) => imageUrls.value[id]).filter(Boolean),
+    };
+    resendingFrom.value = lastUser.messageId;
+  }
   stream.begin(selectedId.value);
   try {
     await api.regenerate(selectedId.value);
     stream.finish();
+    await refreshConversations();
     await refreshDetail();
+    resendingFrom.value = null;
   } catch (e) {
     stream.fail(errMessage(e));
+    await refreshDetail();
+    pendingUser.value = null;
+    resendingFrom.value = null;
   }
 }
 
@@ -843,6 +939,87 @@ async function saveEdit(messageId: string) {
   } catch (e) {
     stream.fail(errMessage(e));
   }
+}
+
+function startEdit(messageId: string, text: string) {
+  editingId.value = messageId;
+  editDraft.value = text;
+}
+
+function cancelEdit() {
+  editingId.value = null;
+  editDraft.value = "";
+}
+
+function pendingArenaRound(roundId?: string | null, selectedCandidateId?: string | null) {
+  if (!arenaLive.value) return false;
+  if (selectedCandidateId) return false;
+  if (roundId && revealedRoundIds.value.has(roundId)) return false;
+  return true;
+}
+
+async function voteArena(kind: VoteKind, roundId?: string | null, candidateId?: string | null) {
+  if (!selectedId.value || !roundId) return;
+  error.value = null;
+  try {
+    await api.castArenaVote(selectedId.value, roundId, kind, kind === "best" ? candidateId : null);
+    revealedRoundIds.value = new Set([...revealedRoundIds.value, roundId]);
+    await refreshConversations();
+    await refreshDetail();
+  } catch (e) {
+    error.value = errMessage(e);
+  }
+}
+
+async function toggleArena(on: boolean) {
+  if (on) {
+    const pool = arenaPoolIds.value;
+    if (pool.length < arenaSlotCount.value) {
+      error.value = t("chat.arenaPoolTooSmall");
+      return;
+    }
+    modelsBeforeArena.value = [...selectedModels.value];
+    arenaEnabled.value = true;
+    if (selectedId.value) {
+      const ok = await applyModels();
+      if (!ok) {
+        arenaEnabled.value = false;
+        modelsBeforeArena.value = [];
+      }
+    }
+    return;
+  }
+  arenaEnabled.value = false;
+  const restored = modelsBeforeArena.value.filter((id) =>
+    presets.value.some((preset) => preset.id === id),
+  );
+  if (restored.length) selectedModels.value = restored;
+  else {
+    const fallback = presets.value[0]?.id;
+    selectedModels.value = fallback ? [fallback] : [];
+  }
+  modelsBeforeArena.value = [];
+  if (selectedId.value) await applyModels();
+}
+
+async function sendRec(text: string) {
+  if (!presets.value.length) {
+    void router.push("/settings/providers");
+    return;
+  }
+  if (!selectedId.value) await createConversation();
+  draft.value = text;
+  await nextTick();
+  await send();
+}
+
+function triggerImport() {
+  importInput.value?.click();
+}
+
+function shiftMobileCandidate(delta: number, count: number) {
+  const next = mobileCandidateIndex.value + delta;
+  mobileCandidateIndex.value = Math.min(Math.max(next, 0), Math.max(count - 1, 0));
 }
 
 async function stopGeneration() {
@@ -873,7 +1050,6 @@ async function actCandidate(kind: "commit" | "fork" | "retry", candidateId: stri
 }
 
 function pickAttachments() {
-  addMenu.value = false;
   const input = document.createElement("input");
   input.type = "file";
   input.accept = "image/*";
@@ -889,20 +1065,14 @@ function pickAttachments() {
 }
 
 function openConversationSettings() {
-  addMenu.value = false;
   if (selectedId.value) {
     selectedRoleId.value = roleStore.convRoles[selectedId.value] || roleStore.defaultRoleId;
   }
   settingsOpen.value = true;
 }
 
-function openMcpSettings() {
-  addMenu.value = false;
-  void router.push("/settings/mcp");
-}
-
 function openProviderSettings() {
-  addMenu.value = false;
+  modelMenu.value = false;
   void router.push("/settings/providers");
 }
 
@@ -978,8 +1148,10 @@ watch(selectedId, async (id) => {
     openTabIds.value = [...openTabIds.value, id];
     persistOpenTabs();
   }
+  modelsBeforeArena.value = [];
   attachments.value = [];
   pendingUser.value = null;
+  resendingFrom.value = null;
   error.value = null;
   editingTitle.value = false;
   editingId.value = null;
@@ -1019,8 +1191,8 @@ async function setupListener() {
       stream.applyCandidateStatus(
         event.candidate_id,
         event.slot_label,
-        event.model_preset_id,
-        event.model_name,
+        arenaLive.value ? "" : event.model_preset_id,
+        arenaLive.value ? "" : event.model_name,
         event.status,
       );
     } else if (event.type === "stream_start") stream.streamStart(event.candidate_id, event.slot_label);
@@ -1064,11 +1236,17 @@ void regenerate;
 void saveEdit;
 void pickAttachments;
 void openConversationSettings;
-void openMcpSettings;
 void openProviderSettings;
 void onComposerDragOver;
 void onComposerDragLeave;
 void onComposerDrop;
+void sendRec;
+void triggerImport;
+void startEdit;
+void cancelEdit;
+void voteArena;
+void toggleArena;
+void shiftMobileCandidate;
 
 onUnmounted(() => {
   window.removeEventListener("aerina:session-changed", onSessionChanged);
@@ -1095,9 +1273,10 @@ onUnmounted(() => {
       :earlier-label="t('chat.earlier')"
       @update:filter="convFilter = $event"
       @select="openTab($event)"
-      @create-with-role="createConversationWithRole"
-      @export="exportConversation"
-      @remove="deleteConversation"
+        @create-with-role="createConversationWithRole"
+        @export="exportConversation"
+        @remove="deleteConversation"
+        @import="triggerImport"
     />
 
     <!-- Mobile View 1: List View -->
@@ -1119,6 +1298,7 @@ onUnmounted(() => {
         @create-with-role="createConversationWithRole($event); showList = false"
         @export="exportConversation"
         @remove="deleteConversation"
+        @import="triggerImport"
       />
     </div>
 
@@ -1224,7 +1404,7 @@ onUnmounted(() => {
             :title="t('chat.rename')"
             @click="editingTitle = true"
           >{{ detail?.conversation.title || t("chat.select") }}</button>
-          <div v-if="!editingTitle" class="chat-title-sub text-truncate">{{ multiModel ? t("chat.multiModel") : (selectedPresetNames || t("chat.singleModel")) }}</div>
+          <div v-if="!editingTitle" class="chat-title-sub text-truncate">{{ arenaLive ? t("chat.arenaMode") : multiModel ? t("chat.multiModel") : (selectedPresetNames || t("chat.singleModel")) }}</div>
         </div>
 
         <v-menu v-if="branches.length > 1 && !editingTitle" location="bottom end" :offset="6">
@@ -1273,7 +1453,7 @@ onUnmounted(() => {
           class="chat-settings-btn"
           :disabled="!selectedId"
           :title="t('chat.conversationSettings')"
-          @click="settingsOpen = true"
+          @click="openConversationSettings"
         />
       </header>
 
@@ -1297,6 +1477,18 @@ onUnmounted(() => {
               @click="router.push('/settings/providers')"
             >{{ t("chat.configureProviders") }}</v-btn>
           </div>
+          <div v-if="presets.length" class="chat-recs">
+            <div class="chat-recs-title">{{ t("chat.recsTitle") }}</div>
+            <div class="chat-recs-list">
+              <button
+                v-for="rec in recs"
+                :key="rec"
+                type="button"
+                class="chat-rec-chip"
+                @click="sendRec(rec)"
+              >{{ rec }}</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1310,6 +1502,18 @@ onUnmounted(() => {
         <div class="chat-empty-card">
           <div class="chat-empty-icon"><v-icon icon="mdi-message-text-outline" size="24" /></div>
           <div class="chat-empty-title">{{ t("chat.emptyThread") }}</div>
+          <div class="chat-recs">
+            <div class="chat-recs-title">{{ t("chat.recsTitle") }}</div>
+            <div class="chat-recs-list">
+              <button
+                v-for="rec in recs"
+                :key="rec"
+                type="button"
+                class="chat-rec-chip"
+                @click="sendRec(rec)"
+              >{{ rec }}</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1327,8 +1531,26 @@ onUnmounted(() => {
               <template v-if="rowAt(vItem.index)">
                 <div v-if="rowAt(vItem.index)!.kind === 'user'" class="msg-row msg-user">
                   <div class="msg-col">
-                    <div class="msg-meta"><span>{{ t("chat.you") }}</span></div>
-                    <div class="msg-bubble user-bubble">
+                    <div class="msg-meta">
+                      <span>{{ t("chat.you") }}</span>
+                      <button
+                        v-if="!stream.isStreaming"
+                        type="button"
+                        class="msg-action"
+                        :title="t('chat.editFork')"
+                        @click="startEdit((rowAt(vItem.index) as any).messageId, (rowAt(vItem.index) as any).text)"
+                      >
+                        <v-icon icon="mdi-pencil-outline" size="14" />
+                      </button>
+                    </div>
+                    <div v-if="editingId === (rowAt(vItem.index) as any).messageId" class="msg-edit">
+                      <textarea v-model="editDraft" class="msg-edit-input" rows="3" />
+                      <div class="msg-edit-actions">
+                        <button type="button" class="msg-action-text" @click="cancelEdit">{{ t("common.cancel") }}</button>
+                        <button type="button" class="msg-action-text primary" @click="saveEdit((rowAt(vItem.index) as any).messageId)">{{ t("common.save") }}</button>
+                      </div>
+                    </div>
+                    <div v-else class="msg-bubble user-bubble">
                       <MarkdownView :text="(rowAt(vItem.index) as any).text" :cache-key="(rowAt(vItem.index) as any).cacheKey" />
                     </div>
                   </div>
@@ -1348,7 +1570,18 @@ onUnmounted(() => {
 
                 <div v-else-if="rowAt(vItem.index)!.kind === 'assistant'" class="msg-row msg-assistant">
                   <div class="msg-col">
-                    <div class="msg-meta"><span>{{ t("app.name") }}</span></div>
+                    <div class="msg-meta">
+                      <span>{{ t("app.name") }}</span>
+                      <button
+                        v-if="!stream.isStreaming && lastTurnKey === (rowAt(vItem.index) as any).key"
+                        type="button"
+                        class="msg-action"
+                        :title="t('chat.regenerate')"
+                        @click="regenerate"
+                      >
+                        <v-icon icon="mdi-refresh" size="14" />
+                      </button>
+                    </div>
                     <div class="msg-bubble assistant-bubble">
                       <ThinkingBlock
                         :text="(rowAt(vItem.index) as any).thinking"
@@ -1368,7 +1601,18 @@ onUnmounted(() => {
 
                 <div v-else-if="rowAt(vItem.index)!.kind === 'round'" class="msg-row msg-assistant">
                   <div class="msg-col wide">
-                    <div class="msg-meta"><span>{{ t("chat.multiModel") }}</span></div>
+                    <div class="msg-meta">
+                      <span>{{ arenaLive ? t("chat.arenaMode") : t("chat.multiModel") }}</span>
+                      <button
+                        v-if="!stream.isStreaming && lastTurnKey === (rowAt(vItem.index) as any).key && !arenaLive"
+                        type="button"
+                        class="msg-action"
+                        :title="t('chat.regenerate')"
+                        @click="regenerate"
+                      >
+                        <v-icon icon="mdi-refresh" size="14" />
+                      </button>
+                    </div>
                     <div v-if="hasUsageInfo((rowAt(vItem.index) as any).usage)" class="usage-line round-usage-line">
                       <span class="usage-context">{{ t("chat.roundUsage") }}</span>
                       <span v-for="(part, pIdx) in formatUsageMeta((rowAt(vItem.index) as any).usage)" :key="pIdx" class="usage-item">
@@ -1376,9 +1620,37 @@ onUnmounted(() => {
                         <span class="usage-value">{{ part.value }}</span>
                       </span>
                     </div>
-                    <div class="round-grid" :class="gridClass((rowAt(vItem.index) as any).candidates.length)">
+                    <div
+                      v-if="mobile && (rowAt(vItem.index) as any).candidates.length > 1"
+                      class="candidate-pager"
+                    >
+                      <button
+                        type="button"
+                        class="candidate-pager-btn"
+                        :disabled="mobileCandidateIndex <= 0"
+                        :title="t('chat.prevCandidate')"
+                        @click="shiftMobileCandidate(-1, (rowAt(vItem.index) as any).candidates.length)"
+                      >
+                        <v-icon icon="mdi-chevron-left" size="18" />
+                      </button>
+                      <span class="candidate-pager-label">
+                        {{ t("chat.candidatePage") }} {{ Math.min(mobileCandidateIndex, (rowAt(vItem.index) as any).candidates.length - 1) + 1 }}
+                        / {{ (rowAt(vItem.index) as any).candidates.length }}
+                      </span>
+                      <button
+                        type="button"
+                        class="candidate-pager-btn"
+                        :disabled="mobileCandidateIndex >= (rowAt(vItem.index) as any).candidates.length - 1"
+                        :title="t('chat.nextCandidate')"
+                        @click="shiftMobileCandidate(1, (rowAt(vItem.index) as any).candidates.length)"
+                      >
+                        <v-icon icon="mdi-chevron-right" size="18" />
+                      </button>
+                    </div>
+                    <div class="round-grid" :class="mobile && (rowAt(vItem.index) as any).candidates.length > 1 ? 'mobile-paged' : gridClass((rowAt(vItem.index) as any).candidates.length)">
                       <div
-                        v-for="cand in (rowAt(vItem.index) as any).candidates"
+                        v-for="(cand, candIdx) in (rowAt(vItem.index) as any).candidates"
+                        v-show="!mobile || (rowAt(vItem.index) as any).candidates.length <= 1 || candIdx === Math.min(mobileCandidateIndex, (rowAt(vItem.index) as any).candidates.length - 1)"
                         :key="cand.messageId"
                         class="candidate-card"
                         :class="{ selected: cand.selected, dimmed: (rowAt(vItem.index) as any).selectedCandidateId && !cand.selected }"
@@ -1403,11 +1675,24 @@ onUnmounted(() => {
                           </span>
                         </div>
                         <div class="d-flex flex-wrap ga-1 mt-2">
-                          <v-btn v-if="cand.candidateId && !(rowAt(vItem.index) as any).selectedCandidateId" size="small" color="primary" variant="tonal" @click="actCandidate('commit', cand.candidateId)">{{ t("chat.pickBest") }}</v-btn>
-                          <v-btn v-if="cand.candidateId" size="small" variant="text" @click="actCandidate('fork', cand.candidateId)">{{ t("common.fork") }}</v-btn>
-                          <v-btn v-if="cand.candidateId && !(rowAt(vItem.index) as any).selectedCandidateId" size="small" variant="text" @click="actCandidate('retry', cand.candidateId)">{{ t("common.retry") }}</v-btn>
+                          <template v-if="pendingArenaRound((rowAt(vItem.index) as any).roundId, (rowAt(vItem.index) as any).selectedCandidateId)">
+                            <v-btn v-if="cand.candidateId" size="small" color="primary" variant="tonal" @click="voteArena('best', (rowAt(vItem.index) as any).roundId, cand.candidateId)">{{ t("arena.voteBest") }}</v-btn>
+                            <v-btn v-if="cand.candidateId" size="small" variant="text" @click="actCandidate('fork', cand.candidateId)">{{ t("common.fork") }}</v-btn>
+                          </template>
+                          <template v-else>
+                            <v-btn v-if="cand.candidateId && !(rowAt(vItem.index) as any).selectedCandidateId" size="small" color="primary" variant="tonal" @click="actCandidate('commit', cand.candidateId)">{{ t("chat.pickBest") }}</v-btn>
+                            <v-btn v-if="cand.candidateId" size="small" variant="text" @click="actCandidate('fork', cand.candidateId)">{{ t("common.fork") }}</v-btn>
+                            <v-btn v-if="cand.candidateId && !(rowAt(vItem.index) as any).selectedCandidateId" size="small" variant="text" @click="actCandidate('retry', cand.candidateId)">{{ t("common.retry") }}</v-btn>
+                          </template>
                         </div>
                       </div>
+                    </div>
+                    <div
+                      v-if="pendingArenaRound((rowAt(vItem.index) as any).roundId, (rowAt(vItem.index) as any).selectedCandidateId)"
+                      class="arena-vote-bar"
+                    >
+                      <v-btn size="small" variant="tonal" @click="voteArena('all_bad', (rowAt(vItem.index) as any).roundId)">{{ t("arena.voteAllBad") }}</v-btn>
+                      <v-btn size="small" variant="text" @click="voteArena('skip', (rowAt(vItem.index) as any).roundId)">{{ t("arena.voteSkip") }}</v-btn>
                     </div>
                   </div>
                 </div>
@@ -1415,8 +1700,8 @@ onUnmounted(() => {
                 <div v-else-if="rowAt(vItem.index)!.kind === 'streaming'" class="msg-row msg-assistant">
                   <div class="msg-col" :class="{ wide: stream.candidates.length > 1 }">
                     <div class="msg-meta stream-heading">
-                      <span>{{ stream.candidates.length > 1 ? t("chat.multiModel") : t("chat.streaming") }}</span>
-                      <span v-if="stream.candidates.length === 1" class="stream-model-name">
+                      <span>{{ arenaLive ? t("chat.arenaMode") : stream.candidates.length > 1 ? t("chat.multiModel") : t("chat.streaming") }}</span>
+                      <span v-if="stream.candidates.length === 1 && !arenaLive" class="stream-model-name">
                         {{ stream.candidates[0]?.modelName }}
                       </span>
                       <span v-if="stream.candidates.length === 1" class="stream-status-pill">
@@ -1453,7 +1738,7 @@ onUnmounted(() => {
                         <div class="msg-meta stream-candidate-meta">
                           <span class="d-inline-flex align-center ga-2 min-w-0">
                             <span class="cand-badge">{{ cand.slotLabel }}</span>
-                            <span class="stream-model-name text-truncate">{{ cand.modelName || t("chat.candidate") }}</span>
+                            <span class="stream-model-name text-truncate">{{ arenaLive ? `${t("chat.anonymousModel")} ${cand.slotLabel}` : (cand.modelName || t("chat.candidate")) }}</span>
                           </span>
                           <span class="stream-status-pill">{{ streamStatusLabel(cand) }}</span>
                         </div>
@@ -1508,7 +1793,7 @@ onUnmounted(() => {
             v-model="draft"
             class="composer-textarea"
             rows="1"
-            :placeholder="multiModel ? t('chat.multiPlaceholder') : t('chat.placeholder')"
+            :placeholder="composerPlaceholder"
             :disabled="!selectedId || stream.isStreaming"
             @input="autoGrowComposer"
             @keydown.enter.exact.prevent="send"
@@ -1516,40 +1801,48 @@ onUnmounted(() => {
 
           <div class="composer-bar">
             <div class="composer-bar-left">
-              <v-menu v-model="addMenu" location="top start" :close-on-content-click="false">
-                <template #activator="{ props: menuProps }">
-                  <button type="button" class="composer-add-btn" v-bind="menuProps" :title="t('chat.add')">
-                    <v-icon icon="mdi-plus" size="17" />
-                  </button>
-                </template>
-                <v-card class="composer-add-menu" min-width="260" rounded="lg">
-                  <div class="composer-add-section">{{ t("chat.addSection") }}</div>
-                  <v-list density="compact">
-                    <v-list-item prepend-icon="mdi-paperclip" :title="t('chat.addFiles')" :subtitle="t('chat.addFilesHint')" @click="pickAttachments" />
-                    <v-list-item prepend-icon="mdi-tune-variant" :title="t('chat.conversationSettings')" :subtitle="t('chat.addSettingsHint')" @click="openConversationSettings" />
-                  </v-list>
-                  <div class="composer-add-section">{{ t("chat.pluginsSection") }}</div>
-                  <v-list density="compact">
-                    <v-list-item prepend-icon="mdi-connection" title="MCP" :subtitle="t('chat.addMcpHint')" @click="openMcpSettings" />
-                    <v-list-item prepend-icon="mdi-server" :title="t('nav.providers')" :subtitle="t('chat.addProvidersHint')" @click="openProviderSettings" />
-                  </v-list>
-                </v-card>
-              </v-menu>
+              <button
+                type="button"
+                class="composer-add-btn"
+                :title="t('chat.addFiles')"
+                :aria-label="t('chat.addFiles')"
+                @click="pickAttachments"
+              >
+                <v-icon icon="mdi-plus" size="17" />
+              </button>
 
               <v-menu v-model="modelMenu" location="top start" :close-on-content-click="false">
                 <template #activator="{ props: menuProps }">
-                  <button type="button" class="composer-model-chip" v-bind="menuProps" :disabled="!presets.length">
-                    <v-icon icon="mdi-cube-outline" size="15" />
+                  <button type="button" class="composer-model-chip" v-bind="menuProps">
+                    <v-icon :icon="arenaLive ? 'mdi-sword-cross' : imageGenMode ? 'mdi-image-outline' : 'mdi-cube-outline'" size="15" />
                     <span class="composer-model-label">{{ modelButtonLabel }}</span>
                     <v-icon icon="mdi-chevron-up" size="14" />
                   </button>
                 </template>
                 <div class="model-menu-compact">
                   <div class="model-menu-head">
-                    <span class="model-menu-title">{{ t("chat.selectModel") }}</span>
-                    <span class="model-menu-count">{{ selectedModels.length }}</span>
+                    <span class="model-menu-title">{{ arenaLive ? t("chat.arenaMode") : t("chat.selectModel") }}</span>
+                    <span v-if="!arenaLive && presets.length" class="model-menu-count">{{ selectedModels.length }}</span>
                   </div>
-                  <div class="model-menu-items">
+                  <div v-if="!presets.length" class="model-menu-empty">
+                    <p class="model-menu-empty-hint">{{ t("chat.noModelsHint") }}</p>
+                    <button type="button" class="model-menu-configure" @click="openProviderSettings">
+                      <v-icon icon="mdi-server" size="14" />
+                      <span>{{ t("chat.configureProviders") }}</span>
+                    </button>
+                  </div>
+                  <template v-else>
+                  <button
+                    type="button"
+                    class="model-menu-arena"
+                    :class="{ on: arenaEnabled }"
+                    :disabled="!arenaEnabled && arenaPoolIds.length < arenaSlotCount"
+                    @click="toggleArena(!arenaEnabled)"
+                  >
+                    <v-icon icon="mdi-sword-cross" size="14" />
+                    <span>{{ t("chat.arenaMode") }}</span>
+                  </button>
+                  <div v-if="!arenaLive" class="model-menu-items">
                     <button
                       v-for="preset in presets"
                       :key="preset.id"
@@ -1564,6 +1857,7 @@ onUnmounted(() => {
                       <span class="model-menu-name">{{ preset.name }}</span>
                     </button>
                   </div>
+                  </template>
                 </div>
               </v-menu>
 
@@ -1637,6 +1931,33 @@ onUnmounted(() => {
           <div class="conversation-settings-field">
             <label class="compact-field-label">{{ t("chat.systemPrompt") }}</label>
             <textarea v-model="systemPrompt" class="settings-input conversation-settings-textarea" rows="4" />
+          </div>
+          <div class="conversation-settings-field">
+            <label class="compact-field-label d-flex align-center justify-space-between">
+              <span>{{ t("chat.arenaMode") }}</span>
+              <v-switch
+                :model-value="arenaEnabled"
+                color="primary"
+                hide-details
+                density="compact"
+                inset
+                @update:model-value="toggleArena(Boolean($event))"
+              />
+            </label>
+            <div class="settings-field-hint">{{ t("chat.arenaModeHint") }}</div>
+            <template v-if="arenaEnabled">
+              <label class="compact-field-label mt-3">{{ t("chat.arenaSlots") }}: {{ arenaSlots }}</label>
+              <v-slider
+                v-model="arenaSlots"
+                class="conversation-settings-slider"
+                :min="2"
+                :max="Math.max(2, Math.min(4, arenaPoolIds.length || 2))"
+                :step="1"
+                thumb-label
+                color="primary"
+                hide-details
+              />
+            </template>
           </div>
         </v-card-text>
         <v-card-actions class="conversation-settings-actions">

@@ -6,6 +6,7 @@ import { createAppI18n, detectSystemLocale, type AppLocale } from "./plugins/i18
 import { createAppVuetify } from "./plugins/vuetify";
 import "katex/dist/katex.min.css";
 import "./styles/chat.css";
+import "./lib/glass/glass.css";
 import "./styles/code-theme.css";
 
 function initialTheme(): "light" | "dark" {

@@ -380,4 +380,91 @@ mod tests {
             assert_eq!(usage[0].ttft_ms, Some(3421));
         }
     }
+
+    #[tokio::test]
+    async fn truncate_branch_from_drops_cut_turn_and_keeps_prior_context() {
+        let db = Db::connect_in_memory().await.unwrap();
+        let (_profile, workspace) = db.ensure_bootstrap().await.unwrap();
+        let (conversation, mut branch) =
+            tree::create_conversation(workspace.id, "thread", ConversationMode::Chat);
+        let settings = ConversationSettings {
+            conversation_id: conversation.id,
+            mode: ConversationMode::Chat,
+            system_prompt: None,
+            temperature: None,
+            model_preset_ids: vec![],
+            candidate_pool: vec![],
+            slot_count: 1,
+            arena_kind: None,
+            arena_category: None,
+            max_concurrency: 1,
+            image_size: None,
+            image_aspect_ratio: None,
+        };
+        db.insert_conversation(&conversation, &branch, &settings)
+            .await
+            .unwrap();
+
+        let user1 = tree::create_user_message(conversation.id, branch.id, None);
+        db.insert_message(&user1, &[ContentBlock::text("first")])
+            .await
+            .unwrap();
+        let assistant1 = MessageNode {
+            id: MessageNodeId::new(),
+            conversation_id: conversation.id,
+            branch_id: branch.id,
+            parent_message_id: Some(user1.id),
+            role: MessageRole::Assistant,
+            round_id: None,
+            candidate_id: None,
+            created_at: Utc::now(),
+        };
+        db.insert_message(&assistant1, &[ContentBlock::text("first reply")])
+            .await
+            .unwrap();
+        let user2 = tree::create_user_message(conversation.id, branch.id, Some(assistant1.id));
+        db.insert_message(&user2, &[ContentBlock::text("second")])
+            .await
+            .unwrap();
+        let round = tree::create_round(conversation.id, branch.id, user2.id);
+        db.insert_round(
+            &round,
+            &RoundSnapshot {
+                round_id: round.id,
+                mode: ConversationMode::Chat,
+                system_prompt: None,
+                temperature: None,
+                model_preset_ids: vec![],
+                arena_kind: None,
+                arena_category: None,
+                image_size: None,
+                image_aspect_ratio: None,
+                created_at: Utc::now(),
+            },
+        )
+        .await
+        .unwrap();
+        let assistant2 = MessageNode {
+            id: MessageNodeId::new(),
+            conversation_id: conversation.id,
+            branch_id: branch.id,
+            parent_message_id: Some(user2.id),
+            role: MessageRole::Assistant,
+            round_id: Some(round.id),
+            candidate_id: None,
+            created_at: Utc::now(),
+        };
+        db.insert_message(&assistant2, &[ContentBlock::text("second reply")])
+            .await
+            .unwrap();
+        branch.head_message_id = Some(assistant1.id);
+        db.upsert_branch(&branch).await.unwrap();
+
+        db.truncate_branch_from(branch.id, user2.id).await.unwrap();
+
+        let remaining = db.list_messages(branch.id).await.unwrap();
+        let ids = remaining.iter().map(|(message, _)| message.id).collect::<Vec<_>>();
+        assert_eq!(ids, vec![user1.id, assistant1.id]);
+        assert!(db.get_round(round.id).await.unwrap().is_none());
+    }
 }

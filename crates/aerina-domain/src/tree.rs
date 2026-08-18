@@ -171,6 +171,31 @@ pub fn fork_from_candidate(
     }
 }
 
+/// IDs of `from_id` and every message that reaches it by walking `parent_message_id`.
+/// Used to drop a turn (user + replies) so a resend starts from the prior context.
+pub fn descendant_ids_inclusive(
+    messages: &[MessageNode],
+    from_id: MessageNodeId,
+) -> Vec<MessageNodeId> {
+    use std::collections::HashMap;
+
+    let by_id: HashMap<_, _> = messages.iter().map(|message| (message.id, message)).collect();
+    messages
+        .iter()
+        .filter(|message| {
+            let mut current = Some(message.id);
+            while let Some(id) = current {
+                if id == from_id {
+                    return true;
+                }
+                current = by_id.get(&id).and_then(|node| node.parent_message_id);
+            }
+            false
+        })
+        .map(|message| message.id)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -231,6 +256,60 @@ mod tests {
         assert_eq!(fork.branch.fork_candidate_id, Some(candidate.id));
         assert_eq!(fork.assistant_message.parent_message_id, Some(user.id));
         assert_eq!(fork.branch.head_message_id, Some(fork.assistant_message.id));
+    }
+
+    #[test]
+    fn descendant_ids_include_cut_message_and_replies() {
+        let workspace_id = WorkspaceId::new();
+        let (conversation, branch) =
+            create_conversation(workspace_id, "demo", ConversationMode::Chat);
+        let user1 = create_user_message(conversation.id, branch.id, None);
+        let assistant1 = MessageNode {
+            id: MessageNodeId::new(),
+            conversation_id: conversation.id,
+            branch_id: branch.id,
+            parent_message_id: Some(user1.id),
+            role: MessageRole::Assistant,
+            round_id: None,
+            candidate_id: None,
+            created_at: Utc::now(),
+        };
+        let user2 = create_user_message(conversation.id, branch.id, Some(assistant1.id));
+        let assistant2a = MessageNode {
+            id: MessageNodeId::new(),
+            conversation_id: conversation.id,
+            branch_id: branch.id,
+            parent_message_id: Some(user2.id),
+            role: MessageRole::Assistant,
+            round_id: None,
+            candidate_id: None,
+            created_at: Utc::now(),
+        };
+        let assistant2b = MessageNode {
+            id: MessageNodeId::new(),
+            conversation_id: conversation.id,
+            branch_id: branch.id,
+            parent_message_id: Some(user2.id),
+            role: MessageRole::Assistant,
+            round_id: None,
+            candidate_id: None,
+            created_at: Utc::now(),
+        };
+        let messages = vec![
+            user1.clone(),
+            assistant1.clone(),
+            user2.clone(),
+            assistant2a.clone(),
+            assistant2b.clone(),
+        ];
+
+        let mut dropped = descendant_ids_inclusive(&messages, user2.id);
+        dropped.sort_by_key(|id| id.to_string());
+        let mut expected = vec![user2.id, assistant2a.id, assistant2b.id];
+        expected.sort_by_key(|id| id.to_string());
+        assert_eq!(dropped, expected);
+        assert!(!dropped.contains(&user1.id));
+        assert!(!dropped.contains(&assistant1.id));
     }
 
     #[test]

@@ -91,6 +91,20 @@
     "noConversations": "No conversations yet.",
     "editFork": "Edit and fork",
     "regenerate": "Regenerate",
+    "assistantRoles": "Assistants",
+    "assistantRolesHint": "Choose an assistant to see its chats",
+    "defaultAssistant": "Default assistant",
+    "emptyRoleConversations": "No conversations",
+    "emptyRoleConversationsHint": "Tap + above to start a chat",
+    "resizeSidebar": "Drag to resize sidebar",
+    "importConversation": "Import conversation",
+    "arenaMode": "Anonymous arena",
+    "arenaModeHint": "Random models from the pool. Names stay hidden until you vote.",
+    "arenaSlots": "Slots",
+    "arenaChip": "Anonymous arena · {n}",
+    "arenaPoolTooSmall": "Not enough models in the random pool for the selected slot count. Add more models to the pool.",
+    "anonymousModel": "Anonymous model",
+    "imageMode": "Image",
     "backToList": "Conversations",
     "search": "Search conversations",
     "models": "Models",
@@ -184,7 +198,8 @@
     "voteBest": "Best",
     "voteAllBad": "All bad",
     "voteSkip": "Skip",
-    "reveal": "Reveal"
+    "reveal": "Reveal",
+    "voted": "Revealed"
   },
   "providers": {
     "title": "Providers",
@@ -221,6 +236,9 @@
     "open": "Manage models",
     "modelsCount": "{n} models",
     "emptyHint": "Add a provider first, then attach models under it.",
+    "emptyModelsHint": "Fetch remote models above, or add a preset manually.",
+    "inPool": "In pool",
+    "outPool": "Not in pool",
     "kindHint": "Three endpoints only: OpenAI Chat, OpenAI Responses, Anthropic Messages.",
     "fetchModels": "Fetch from API",
     "fetchingModels": "Fetching models…",
@@ -292,7 +310,7 @@
     "games": "Games",
     "wins": "Wins",
     "winRate": "Win rate",
-    "emptyBoard": "No ranking yet. Pick a best answer in multi-model chat to start.",
+    "emptyBoard": "No ranking yet. Pick a best answer in multi-model chat, or vote in anonymous arena.",
     "emptyBackups": "No backups yet.",
     "actions": "Actions",
     "refresh": "Refresh",
@@ -303,6 +321,7 @@
     "current": "Local profile",
     "switch": "Switch profile",
     "create": "New profile",
+    "createPlaceholder": "Display name",
     "rename": "Rename profile",
     "name": "Display name",
     "nameRequired": "Display name is required",
@@ -328,7 +347,7 @@
   },
   "ranking": {
     "title": "Model Ranking",
-    "desc": "Elo ranking from multi-model “pick best” comparisons."
+    "desc": "Elo ranking from multi-model pick-best and anonymous arena votes."
   },
   "profileSettings": {
     "title": "Local profile",

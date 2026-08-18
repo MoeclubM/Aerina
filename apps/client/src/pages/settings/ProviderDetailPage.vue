@@ -223,6 +223,24 @@ async function removeModel(id: string) {
   await refresh();
 }
 
+async function togglePool(model: (typeof models.value)[number]) {
+  error.value = null;
+  try {
+    await api.upsertModelPreset({
+      id: model.id,
+      provider_id: providerId.value,
+      name: model.name,
+      model_name: model.model_name,
+      capabilities: model.capabilities,
+      temperature: model.temperature ?? undefined,
+      in_random_pool: model.in_random_pool === false,
+    });
+    await refresh();
+  } catch (e) {
+    error.value = errMessage(e);
+  }
+}
+
 onMounted(refresh);
 watch(providerId, () => {
   remoteModels.value = [];
@@ -377,7 +395,7 @@ watch(providerId, () => {
               {{ t("providers.remoteModels") }}
             </div>
             <div class="px-4 text-caption text-medium-emphasis mb-2">
-              使用当前已保存的 Base URL 与 API Key 请求 /models。
+              {{ t("providers.fetchHint") }}
             </div>
             <div class="settings-panel-body pt-0">
               <div class="d-flex flex-wrap align-center ga-2 mb-3">
@@ -441,14 +459,14 @@ watch(providerId, () => {
                     size="x-small"
                     variant="tonal"
                   >
-                    已添加
+                    {{ t("providers.alreadyAdded") }}
                   </v-chip>
                 </div>
               </div>
             </div>
             <div class="settings-panel-actions">
               <span class="text-caption text-medium-emphasis me-auto">
-                已选中 {{ selectedRemote.length }} 个模型
+                {{ t("providers.selectedCount", { n: selectedRemote.length }) }}
               </span>
               <v-btn
                 color="primary"
@@ -504,6 +522,10 @@ watch(providerId, () => {
                   </v-chip>
                 </v-chip-group>
               </div>
+              <label class="random-pool-row">
+                <input v-model="modelForm.in_random_pool" type="checkbox" class="settings-checkbox" />
+                <span>{{ t("providers.randomPool") }}</span>
+              </label>
             </div>
             <div class="settings-panel-actions">
               <v-btn variant="text" size="small" @click="showModelForm = false">{{ t("common.cancel") }}</v-btn>
@@ -524,7 +546,7 @@ watch(providerId, () => {
         <section v-if="!models.length" class="settings-panel settings-empty-panel py-8">
           <v-icon icon="mdi-cube-outline" size="36" class="text-medium-emphasis mb-2" />
           <div class="settings-empty-title">{{ t("providers.noModels") }}</div>
-          <div class="settings-empty-desc">点击上方从 API 拉取或手动添加模型预设</div>
+          <div class="settings-empty-desc">{{ t("providers.emptyModelsHint") }}</div>
         </section>
 
         <!-- High Density Models Grid -->
@@ -537,6 +559,15 @@ watch(providerId, () => {
             <div class="model-card-main">
               <div class="d-flex align-center ga-2">
                 <span class="model-card-name">{{ model.name }}</span>
+                <button
+                  type="button"
+                  class="pool-chip"
+                  :class="{ on: model.in_random_pool !== false }"
+                  :title="t('providers.randomPool')"
+                  @click="togglePool(model)"
+                >
+                  {{ model.in_random_pool !== false ? t("providers.inPool") : t("providers.outPool") }}
+                </button>
               </div>
               <div class="model-card-sub">
                 <code>{{ model.model_name }}</code>
@@ -571,6 +602,30 @@ watch(providerId, () => {
   display: flex;
   flex-direction: column;
 }
+.random-pool-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pool-chip {
+  border: 0;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 650;
+  background: rgba(var(--v-theme-on-surface), 0.08);
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  cursor: pointer;
+}
+.pool-chip.on {
+  background: rgba(var(--v-theme-primary), 0.14);
+  color: rgb(var(--v-theme-primary));
+}
 
 @media (max-width: 600px) {
   .form-grid-2col {
@@ -596,6 +651,11 @@ watch(providerId, () => {
   margin: 0 auto;
   padding: 20px;
   box-sizing: border-box;
+}
+@media (max-width: 679px) {
+  .settings-page-inner {
+    padding: 12px 14px 28px;
+  }
 }
 .settings-page-header {
   display: grid;

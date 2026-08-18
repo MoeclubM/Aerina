@@ -26,31 +26,35 @@ impl AppState {
     where
         F: FnMut(GenerationEvent) + Send,
     {
-        let detail = self.get_conversation_ui(conversation_id).await?;
-        let last_user = detail
-            .messages
-            .iter()
-            .rev()
-            .find(|m| matches!(m.message.role, MessageRole::User))
-            .ok_or_else(|| anyhow!("no user message to regenerate"))?;
-
-        // Move branch head back to the parent of the last user message and resend.
         let conversation_id_parsed = parse_entity_id(conversation_id)?;
-        let branch_id = detail
-            .conversation
-            .active_branch_id
-            .ok_or_else(|| anyhow!("missing active branch"))?;
-        let mut branch = self
+        let conversation = self
             .inner
             .db
-            .get_branch(branch_id)
+            .get_conversation(conversation_id_parsed)
             .await?
-            .ok_or_else(|| anyhow!("branch not found"))?;
-        branch.head_message_id = last_user.message.parent_message_id;
-        self.inner.db.upsert_branch(&branch).await?;
+            .ok_or_else(|| anyhow!("conversation not found"))?;
+        let settings = self
+            .inner
+            .db
+            .get_settings(conversation_id_parsed)
+            .await?
+            .ok_or_else(|| anyhow!("settings not found"))?;
+        let branch_id = conversation
+            .active_branch_id
+            .ok_or_else(|| anyhow!("missing active branch"))?;
+        let history = self.inner.db.list_messages(branch_id).await?;
+        let last_user = history
+            .iter()
+            .rev()
+            .find(|(message, _)| matches!(message.role, MessageRole::User))
+            .ok_or_else(|| anyhow!("no user message to regenerate"))?;
 
+        // Drop the last user turn (and replies) then send it again, like CherryStudio / RikkaHub.
+        // Context starts from before that message, not the original Q&A plus a repeat.
+        let last_user_id = last_user.0.id;
+        let parent_message_id = last_user.0.parent_message_id;
         let content = last_user
-            .blocks
+            .1
             .iter()
             .filter_map(|b| match b {
                 ContentBlock::Text { text } => Some(text.clone()),
@@ -58,10 +62,24 @@ impl AppState {
             })
             .collect::<Vec<_>>()
             .join("\n");
+        let image_blocks = last_user.1.clone();
+
+        let mut branch = self
+            .inner
+            .db
+            .get_branch(branch_id)
+            .await?
+            .ok_or_else(|| anyhow!("branch not found"))?;
+        branch.head_message_id = parent_message_id;
+        self.inner.db.upsert_branch(&branch).await?;
+        self.inner
+            .db
+            .truncate_branch_from(branch_id, last_user_id)
+            .await?;
 
         let image_data_urls = {
             let mut urls = Vec::new();
-            for block in &last_user.blocks {
+            for block in &image_blocks {
                 if let ContentBlock::Image { media_id, .. } = block {
                     if let Some(media) = self.inner.db.get_media_object(*media_id).await? {
                         urls.push(
@@ -86,7 +104,7 @@ impl AppState {
                 content,
                 image_data_urls,
                 require_image: None,
-                image_size: detail.settings.image_size.clone(),
+                image_size: settings.image_size.clone(),
             },
             Some(conversation_id_parsed),
             on_event,
@@ -126,8 +144,13 @@ impl AppState {
             .await?
             .ok_or_else(|| anyhow!("branch not found"))?;
 
-        let history = self.inner.db.list_messages(branch_id).await?;
         let parent_message_id = branch.head_message_id;
+        let branch_messages = self.inner.db.list_messages(branch_id).await?;
+        let history = if branch_messages.is_empty() {
+            self.inner.db.list_message_path(parent_message_id).await?
+        } else {
+            branch_messages
+        };
         let user_message = tree::create_user_message(conversation_id, branch_id, parent_message_id);
 
         let mut user_blocks = vec![ContentBlock::text(request.content.clone())];

@@ -170,6 +170,7 @@ export interface ModelPreset {
   model_name: string;
   capabilities: CapabilityTag[];
   temperature?: number | null;
+  in_random_pool?: boolean;
   enabled: boolean;
 }
 

@@ -11,7 +11,7 @@
     "stats": "用户",
     "settings": "设置",
     "appearance": "外观",
-    "profile": "用户",
+    "profile": "我的",
     "ranking": "排名"
   },
   "common": {
@@ -91,6 +91,20 @@
     "noConversations": "还没有对话。",
     "editFork": "编辑并分叉",
     "regenerate": "重新生成",
+    "assistantRoles": "助手角色",
+    "assistantRolesHint": "选择助手查看对应对话",
+    "defaultAssistant": "默认助手",
+    "emptyRoleConversations": "暂无对话",
+    "emptyRoleConversationsHint": "点击上方 + 新建对话",
+    "resizeSidebar": "拖拽调整侧边栏宽度",
+    "importConversation": "导入对话",
+    "arenaMode": "匿名竞技场",
+    "arenaModeHint": "从候选池随机抽取模型，投票后再揭晓名称。",
+    "arenaSlots": "同时对比数",
+    "arenaChip": "匿名竞技场 · {n}",
+    "arenaPoolTooSmall": "随机池中的模型数量不足，无法抽取指定数量。请把更多模型加入随机池。",
+    "anonymousModel": "匿名模型",
+    "imageMode": "生图",
     "backToList": "对话列表",
     "search": "搜索对话",
     "models": "模型",
@@ -184,7 +198,8 @@
     "voteBest": "最佳",
     "voteAllBad": "全部不理想",
     "voteSkip": "跳过",
-    "reveal": "揭晓"
+    "reveal": "揭晓",
+    "voted": "已揭晓"
   },
   "providers": {
     "title": "供应商",
@@ -221,6 +236,9 @@
     "open": "管理模型",
     "modelsCount": "{n} 个模型",
     "emptyHint": "添加第一个供应商后，再为它配置可用模型。",
+    "emptyModelsHint": "从上方拉取远程模型，或手动添加预设。",
+    "inPool": "随机池",
+    "outPool": "未入池",
     "kindHint": "只支持三类端点：OpenAI Chat、OpenAI Responses、Anthropic Messages。",
     "fetchModels": "从 API 拉取",
     "fetchingModels": "正在拉取模型…",
@@ -292,7 +310,7 @@
     "games": "场次",
     "wins": "胜场",
     "winRate": "胜率",
-    "emptyBoard": "还没有排行数据。在多模型对话里点「选为最佳」后会累计。",
+    "emptyBoard": "还没有排行数据。在多模型对比里点「选为最佳」，或在匿名竞技场投票后会累计。",
     "emptyBackups": "还没有备份。",
     "actions": "操作",
     "refresh": "刷新",
@@ -303,6 +321,7 @@
     "current": "本地用户",
     "switch": "切换用户",
     "create": "新建用户",
+    "createPlaceholder": "显示名称",
     "rename": "重命名用户",
     "name": "显示名称",
     "nameRequired": "请输入显示名称",
@@ -328,7 +347,7 @@
   },
   "ranking": {
     "title": "模型排名",
-    "desc": "根据多模型对话里「选为最佳」累计的 Elo 排名。"
+    "desc": "根据多模型「选为最佳」与匿名竞技场投票累计的 Elo 排名。"
   },
   "profileSettings": {
     "title": "本地用户",

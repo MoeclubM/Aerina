@@ -260,6 +260,7 @@ html, body, #app {
 }
 .conv-mode-dot.multi { background: rgb(var(--v-theme-tertiary)); }
 .conv-mode-dot.single { background: rgb(var(--v-theme-primary)); }
+.conv-mode-dot.arena { background: #c2410c; }
 .conv-item-actions {
   display: flex;
   opacity: 0;
@@ -291,8 +292,9 @@ html, body, #app {
   padding-block: 3px;
   padding-inline: 10px 14px;
   min-height: 38px;
-  background: color-mix(in srgb, rgb(var(--v-theme-background)) 72%, transparent);
-  backdrop-filter: blur(16px) saturate(1.2);
+  background: var(--aerina-glass-hi), var(--aerina-glass-bg);
+  -webkit-backdrop-filter: var(--aerina-glass-lens);
+  backdrop-filter: var(--aerina-glass-lens);
   border-block-end: 1px solid var(--aerina-border);
   z-index: 2;
   flex: 0 0 auto;
@@ -524,7 +526,9 @@ html, body, #app {
   max-width: 440px;
   padding: 32px 28px;
   border-radius: 22px;
-  background: rgb(var(--v-theme-surface-bright));
+  background: var(--aerina-glass-hi), var(--aerina-glass-bg);
+  -webkit-backdrop-filter: var(--aerina-glass-lens);
+  backdrop-filter: var(--aerina-glass-lens);
   border: 1px solid var(--aerina-border);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
 }
@@ -558,11 +562,7 @@ html, body, #app {
 
 .chat-composer {
   padding: 0 16px 18px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--miuix-background) 0%, transparent) 0%,
-    var(--miuix-background) 42%
-  );
+  background: transparent;
   z-index: 2;
   pointer-events: none;
 }
@@ -575,11 +575,11 @@ html, body, #app {
   position: relative;
   border-radius: 16px;
   padding: 10px 10px 8px;
-  border: 0;
-  background: var(--miuix-secondary-container);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  box-shadow: none;
+  border: 1px solid var(--aerina-glass-edge);
+  background: var(--aerina-glass-hi), var(--aerina-glass-bg);
+  -webkit-backdrop-filter: var(--aerina-glass-lens);
+  backdrop-filter: var(--aerina-glass-lens);
+  box-shadow: var(--aerina-glass-inner), var(--aerina-glass-shadow);
   transition:
     border-color var(--aerina-spring),
     box-shadow var(--aerina-spring),
@@ -588,8 +588,8 @@ html, body, #app {
   overflow: hidden;
 }
 .v-theme--dark .chat-composer-inner {
-  background: var(--miuix-secondary-container);
-  box-shadow: none;
+  background: var(--aerina-glass-hi), var(--aerina-glass-bg);
+  box-shadow: var(--aerina-glass-inner), var(--aerina-glass-shadow);
 }
 .chat-composer-inner:focus-within {
   box-shadow: inset 0 0 0 2px rgb(var(--v-theme-primary));
@@ -932,6 +932,31 @@ html, body, #app {
   background: rgb(var(--v-theme-background));
 }
 
+/* Providers: inner scroll only — no window/body scrollbar */
+.settings-page.providers-page {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: transparent;
+}
+.settings-page.providers-page .settings-page-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.settings-page.providers-page .v-field__outline {
+  display: none !important;
+}
+.settings-page.providers-page .v-field {
+  border-radius: var(--aerina-control-radius) !important;
+}
+.settings-page.providers-page .v-label {
+  opacity: 1 !important;
+  color: rgba(var(--v-theme-on-surface), 0.62) !important;
+}
+
 
 /* ---------- profile + list polish ---------- */
 .conv-group-label {
@@ -1117,6 +1142,38 @@ html, body, #app {
   text-overflow: ellipsis;
 }
 
+.profile-create-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 8px;
+}
+.profile-create-input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(var(--v-border-color), 0.4);
+  background: rgb(var(--v-theme-surface));
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+}
+.profile-create-save {
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
 .profile-menu-leading {
   flex: 0 0 auto;
   opacity: 0.72;
@@ -1174,9 +1231,9 @@ html, body, #app {
   min-height: 32px;
   padding: 0 5px 0 6px;
   border-block-end: 0;
-  background: var(--aerina-material-heavy);
-  backdrop-filter: blur(14px) saturate(150%);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  background: var(--aerina-glass-hi), var(--aerina-glass-bg);
+  -webkit-backdrop-filter: var(--aerina-glass-lens);
+  backdrop-filter: var(--aerina-glass-lens);
   z-index: 3;
 }
 .chat-tabs-scroll {
@@ -1477,9 +1534,9 @@ html, body, #app {
   -webkit-backdrop-filter: none !important;
 }
 .v-app-bar {
-  background: var(--miuix-surface) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  background: var(--aerina-glass-hi), var(--aerina-glass-bg) !important;
+  backdrop-filter: var(--aerina-glass-lens) !important;
+  -webkit-backdrop-filter: var(--aerina-glass-lens) !important;
 }
 .conv-item {
   transition: background var(--aerina-spring), transform var(--aerina-press), border-color var(--aerina-spring);
@@ -1658,6 +1715,7 @@ html, body, #app {
   --miuix-dimming: rgb(0 0 0 / 30%);
 }
 
+
 .v-theme--dark {
   --miuix-background: #242424;
   --miuix-surface: #000000;
@@ -1673,11 +1731,51 @@ html, body, #app {
   --miuix-dimming: rgb(0 0 0 / 60%);
 }
 
+
+
 .aerina-app {
   position: relative;
   overflow: hidden;
   z-index: 1;
-  background: var(--miuix-surface) !important;
+  background:
+    radial-gradient(1200px 900px at 6% -12%, rgb(120 165 255 / 40%), transparent 55%),
+    radial-gradient(1000px 800px at 104% 6%, rgb(255 160 200 / 36%), transparent 55%),
+    radial-gradient(1100px 850px at 90% 96%, rgb(150 210 255 / 34%), transparent 58%),
+    radial-gradient(900px 700px at 30% 70%, rgb(210 190 255 / 22%), transparent 60%),
+    var(--miuix-surface) !important;
+}
+.v-theme--dark .aerina-app {
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  background:
+    radial-gradient(1200px 900px at 6% -12%, rgb(70 110 220 / 45%), transparent 55%),
+    radial-gradient(1000px 800px at 104% 6%, rgb(200 90 150 / 40%), transparent 55%),
+    radial-gradient(1100px 850px at 90% 96%, rgb(60 150 220 / 38%), transparent 58%),
+    radial-gradient(900px 700px at 30% 70%, rgb(120 90 200 / 30%), transparent 60%),
+    var(--miuix-surface) !important;
+}
+.aerina-app {
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  background:
+    radial-gradient(1200px 900px at 6% -12%, rgb(120 165 255 / 40%), transparent 55%),
+    radial-gradient(1000px 800px at 104% 6%, rgb(255 160 200 / 36%), transparent 55%),
+    radial-gradient(1100px 850px at 90% 96%, rgb(150 210 255 / 34%), transparent 58%),
+    radial-gradient(900px 700px at 30% 70%, rgb(210 190 255 / 22%), transparent 60%),
+    var(--miuix-surface) !important;
+}
+.v-theme--dark .aerina-app {
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  background:
+    radial-gradient(1200px 900px at 6% -12%, rgb(70 110 220 / 45%), transparent 55%),
+    radial-gradient(1000px 800px at 104% 6%, rgb(200 90 150 / 40%), transparent 55%),
+    radial-gradient(1100px 850px at 90% 96%, rgb(60 150 220 / 38%), transparent 58%),
+    radial-gradient(900px 700px at 30% 70%, rgb(120 90 200 / 30%), transparent 60%),
+    var(--miuix-surface) !important;
 }
 .aerina-app::before,
 .aerina-app::after {
@@ -1691,15 +1789,14 @@ html, body, #app {
 .ranking-page,
 .settings-page,
 .appearance-page {
-  background: var(--miuix-surface) !important;
+  background: transparent !important;
 }
 
-.chat-toolbar,
 .v-app-bar {
-  background: var(--miuix-surface) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border-block-end: 1px solid var(--miuix-divider) !important;
+  background: var(--aerina-glass-hi), var(--aerina-glass-bg) !important;
+  backdrop-filter: var(--aerina-glass-lens) !important;
+  -webkit-backdrop-filter: var(--aerina-glass-lens) !important;
+  border-block-end: 1px solid var(--aerina-glass-edge) !important;
 }
 .v-bottom-navigation {
   background: var(--miuix-surface) !important;
@@ -1758,7 +1855,8 @@ html, body, #app {
 }
 
 .branch-menu,
-.profile-menu {
+.profile-menu,
+.unified-runtime-menu {
   background: var(--miuix-surface-container-high) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -1846,30 +1944,33 @@ html, body, #app {
 }
 
 
-/* Column Draggable Resizer Handle */
+/* Overlay resize handle — no layout gutter; hit target sits on the sidebar edge */
 .sidebar-col-resizer {
-  position: relative;
-  z-index: 20;
-  flex: 0 0 6px;
+  position: absolute;
+  z-index: 30;
+  inset-block: 0;
+  inset-inline-end: 0;
   width: 6px;
-  height: 100%;
   cursor: col-resize;
   background: transparent;
+  -webkit-app-region: no-drag;
 }
 .sidebar-col-resizer::after {
   content: "";
   position: absolute;
-  inset-block: 0;
-  inset-inline-start: 2px;
-  width: 1px;
-  background: var(--aerina-border);
-  transition: width 0.12s ease, background 0.12s ease;
+  inset-block: 12px;
+  inset-inline-end: 0;
+  width: 2px;
+  border-radius: 999px;
+  background: transparent;
+  opacity: 0;
+  transition: opacity 0.16s ease, background 0.16s ease, inset-block 0.16s ease;
 }
 .sidebar-col-resizer:hover::after,
 .sidebar-col-resizer.resizing::after {
-  inset-inline-start: 2px;
-  width: 2px;
-  background: rgba(var(--v-theme-primary), 0.68);
+  inset-block: 8px;
+  background: rgba(var(--v-theme-primary), 0.72);
+  opacity: 1;
 }
 body.sidebar-resizing,
 body.sidebar-resizing * {
@@ -2090,9 +2191,9 @@ textarea.settings-input {
   min-height: 0;
   position: relative;
   box-sizing: border-box;
-  background: var(--aerina-material);
-  backdrop-filter: var(--aerina-blur);
-  -webkit-backdrop-filter: var(--aerina-blur);
+  background: var(--aerina-glass-hi), var(--aerina-glass-bg);
+  -webkit-backdrop-filter: var(--aerina-glass-lens);
+  backdrop-filter: var(--aerina-glass-lens);
   border-inline-end: 0;
   user-select: none;
   overflow: hidden;
@@ -2102,90 +2203,122 @@ textarea.settings-input {
   height: 48px;
   display: flex;
   align-items: center;
-  padding: 0 14px;
+  gap: 8px;
+  padding: 0 8px 0 14px;
+  min-width: 0;
 }
 .unified-brand {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 .unified-logo {
+  flex: 0 0 auto;
   width: 28px;
   height: 28px;
   object-fit: contain;
   filter: drop-shadow(0 2px 8px rgba(21, 101, 255, 0.35));
 }
 .unified-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 1.05rem;
   letter-spacing: -0.01em;
 }
 
-.unified-runtime-nav {
-  padding: 5px 8px 8px;
-  border-bottom: 1px solid rgba(var(--v-border-color), 0.18);
+.unified-runtime-trigger {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 34px;
+  height: 28px;
+  padding: 0 2px 0 4px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(var(--v-theme-on-surface), 0.62);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  -webkit-tap-highlight-color: transparent;
 }
-.unified-runtime-label {
-  padding: 0 4px 5px;
+.unified-runtime-trigger:hover,
+.unified-runtime-trigger:focus-visible {
+  outline: none;
+  color: rgb(var(--v-theme-on-surface));
+}
+.unified-runtime-chevron {
+  opacity: 0.55;
+  margin-inline-start: -1px;
+}
+.runtime-mode-overlay {
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+.unified-runtime-menu {
+  min-width: 168px;
+  padding: 6px;
+  border: 1px solid rgba(var(--v-border-color), 0.4);
+  border-radius: 14px;
+  background: rgb(var(--v-theme-surface));
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.14);
+}
+.unified-runtime-menu-label {
+  padding: 4px 8px 6px;
   color: color-mix(in srgb, var(--miuix-on-container) 40%, transparent);
   font-size: 0.66rem;
   font-weight: 650;
 }
-.unified-runtime-switch {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid rgba(var(--v-border-color), 0.28);
-  border-radius: 12px;
-  background: var(--miuix-surface);
-}
-.unified-runtime-item {
+.unified-runtime-menu-item {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-width: 0;
-  height: 36px;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
   padding: 0 8px;
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: rgba(var(--v-theme-on-surface), 0.6);
+  color: rgb(var(--v-theme-on-surface));
   font: inherit;
-  font-size: 0.74rem;
-  font-weight: 650;
+  font-size: 0.82rem;
+  font-weight: 560;
   cursor: pointer;
-  transition: background var(--aerina-spring), color var(--aerina-spring), transform var(--aerina-press), box-shadow var(--aerina-spring);
   -webkit-tap-highlight-color: transparent;
 }
-.unified-runtime-item:hover,
-.unified-runtime-item:focus-visible {
+.unified-runtime-menu-item:hover,
+.unified-runtime-menu-item:focus-visible {
   outline: none;
-  color: rgb(var(--v-theme-on-surface));
-  background: rgba(var(--v-theme-on-surface), 0.05);
+  background: rgba(var(--v-theme-on-surface), 0.06);
 }
-.unified-runtime-item:active {
-  background: color-mix(in srgb, var(--miuix-surface-container-high) 90%, var(--miuix-on-container) 10%);
-  transform: none;
+.unified-runtime-menu-item:active {
+  transform: scale(0.99);
 }
-.unified-runtime-item.active,
-.v-theme--dark .unified-runtime-item.active {
-  color: rgb(var(--v-theme-on-surface));
-  background: var(--miuix-surface-container-high);
-  box-shadow: none;
+.unified-runtime-menu-item.active {
+  background: rgba(var(--v-theme-primary), 0.12);
+  color: rgb(var(--v-theme-primary));
+  font-weight: 620;
 }
-.unified-runtime-item.reserved {
-  color: rgba(var(--v-theme-on-surface), 0.66);
+.unified-runtime-menu-item.reserved {
+  color: rgba(var(--v-theme-on-surface), 0.72);
 }
-.unified-runtime-item-label {
+.unified-runtime-menu-item-label {
   min-width: 0;
+  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .unified-runtime-badge {
   flex: 0 0 auto;
-  padding: 1px 4px;
+  padding: 1px 5px;
   border-radius: 999px;
   color: rgba(var(--v-theme-on-surface), 0.54);
   background: rgba(var(--v-theme-on-surface), 0.06);
@@ -2227,6 +2360,17 @@ textarea.settings-input {
 .assistant-pane-header {
   min-height: 42px;
   padding: 3px 5px 7px;
+}
+.assistant-pane-heading {
+  min-width: 0;
+  flex: 1;
+}
+.assistant-pane-inline-count {
+  margin-left: 8px;
+  color: rgba(var(--v-theme-on-surface), 0.42);
+  font-size: 0.78em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .sidebar-page-title,
 .conversation-page-title {
@@ -2274,9 +2418,15 @@ textarea.settings-input {
   color: rgba(var(--v-theme-on-surface), 0.58);
   cursor: pointer;
 }
-.assistant-manage-btn:hover {
+.assistant-manage-btn:hover,
+.assistant-manage-btn:focus-visible {
+  outline: none;
   color: rgb(var(--v-theme-primary));
   background: rgba(var(--v-theme-primary), 0.09);
+}
+.assistant-manage-btn:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 1px;
 }
 .assistant-chips-scroller {
   flex: 1;
@@ -2385,15 +2535,74 @@ textarea.settings-input {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.conversation-pane-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
 .conversation-new-btn {
   flex: 0 0 auto;
   width: 28px !important;
   height: 28px !important;
-  color: rgba(var(--v-theme-on-surface), 0.64) !important;
 }
-.conversation-new-btn:hover {
-  color: rgb(var(--v-theme-primary)) !important;
-  background: rgba(var(--v-theme-primary), 0.08) !important;
+
+/* Sidebar header icon buttons — high contrast, no Vuetify overlay wash */
+.conversation-header-icon,
+.sidebar-back-btn.conversation-header-icon,
+.assistant-manage-btn.conversation-header-icon,
+.conversation-new-btn.conversation-header-icon {
+  color: rgba(var(--v-theme-on-surface), 0.86) !important;
+  background: rgba(var(--v-theme-on-surface), 0.06) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.conversation-header-icon .v-btn__overlay,
+.conversation-header-icon .v-btn__underlay,
+.conversation-new-btn.conversation-header-icon .v-btn__overlay,
+.conversation-new-btn.conversation-header-icon .v-btn__underlay {
+  opacity: 0 !important;
+}
+.conversation-header-icon:hover,
+.conversation-new-btn.conversation-header-icon:hover,
+.sidebar-back-btn.conversation-header-icon:hover,
+.assistant-manage-btn.conversation-header-icon:hover {
+  color: rgba(var(--v-theme-on-surface), 0.94) !important;
+  background: rgba(var(--v-theme-on-surface), 0.1) !important;
+}
+.conversation-header-icon:active,
+.conversation-new-btn.conversation-header-icon:active,
+.sidebar-back-btn.conversation-header-icon:active,
+.assistant-manage-btn.conversation-header-icon:active {
+  color: rgba(var(--v-theme-on-surface), 0.94) !important;
+  background: rgba(var(--v-theme-on-surface), 0.14) !important;
+  transform: none;
+}
+.conversation-header-icon:focus-visible,
+.conversation-new-btn.conversation-header-icon:focus-visible,
+.sidebar-back-btn.conversation-header-icon:focus-visible,
+.assistant-manage-btn.conversation-header-icon:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 2px;
+}
+.v-theme--light .conversation-header-icon,
+.v-theme--light .conversation-new-btn.conversation-header-icon {
+  color: rgba(var(--v-theme-on-surface), 0.82) !important;
+  background: rgba(var(--v-theme-on-surface), 0.05) !important;
+}
+.v-theme--light .conversation-header-icon:hover,
+.v-theme--light .conversation-new-btn.conversation-header-icon:hover {
+  color: rgba(var(--v-theme-on-surface), 0.92) !important;
+  background: rgba(var(--v-theme-on-surface), 0.08) !important;
+}
+.v-btn.conversation-header-icon {
+  border-radius: 10px !important;
+}
+.conversation-header-icon .v-icon,
+.conversation-new-btn.conversation-header-icon .v-icon {
+  color: inherit !important;
+  opacity: 1 !important;
 }
 .conversation-search-row {
   flex: 0 0 auto;
@@ -2418,7 +2627,7 @@ textarea.settings-input {
   display: grid;
   gap: 2px;
   padding: 5px 4px 8px;
-  background: var(--miuix-surface-container);
+  background: transparent;
 }
 .unified-footer-settings {
   display: flex;
@@ -2514,20 +2723,43 @@ textarea.settings-input {
    ========================================================================== */
 .aerina-tab-bar {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 1004;
   display: flex;
   align-items: stretch;
-  height: calc(48px + env(safe-area-inset-bottom, 0px));
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: var(--miuix-surface);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border-top: 1px solid var(--miuix-divider);
+  width: min(calc(100% - 28px), 420px);
+  height: 56px;
+  padding: 4px;
+  gap: 4px;
+  border-radius: 20px;
+  background: var(--aerina-glass-bg);
+  border: 1px solid var(--aerina-glass-edge);
+  box-shadow: var(--aerina-glass-inner), var(--aerina-glass-shadow);
+  -webkit-backdrop-filter: var(--aerina-glass-lens);
+  backdrop-filter: var(--aerina-glass-lens);
+  overflow: hidden;
+}
+.aerina-tab-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--aerina-glass-hi);
+  pointer-events: none;
+}
+.aerina-tab-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--aerina-glass-tint);
+  pointer-events: none;
 }
 .tab-bar-item {
+  position: relative;
+  z-index: 1;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -2535,14 +2767,19 @@ textarea.settings-input {
   justify-content: center;
   gap: 2px;
   border: 0;
+  border-radius: 16px;
   background: transparent;
-  color: color-mix(in srgb, var(--miuix-on-container) 40%, transparent);
+  color: color-mix(in srgb, var(--miuix-on-container) 45%, transparent);
   cursor: pointer;
   padding: 0;
-  transition: color 0.15s ease;
+  transition: background 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.15s ease, transform 0.1s ease-out;
   -webkit-tap-highlight-color: transparent;
 }
+.tab-bar-item:hover {
+  background: color-mix(in srgb, var(--miuix-on-container) 6%, transparent);
+}
 .tab-bar-item:active {
+  transform: scale(0.96);
   color: color-mix(in srgb, var(--miuix-on-container) 60%, transparent);
   opacity: 1;
 }
@@ -2561,7 +2798,7 @@ textarea.settings-input {
 
 /* Offset page content for fixed tab bar (mobile only) */
 .app-main.has-tab-bar {
-  padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)) !important;
+  padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px)) !important;
 }
 
 /* Compact conversation controls */
@@ -2658,6 +2895,37 @@ textarea.settings-input {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.model-menu-empty {
+  padding: 10px 12px 12px;
+}
+.model-menu-empty-hint {
+  margin: 0 0 10px;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: rgba(var(--v-theme-on-surface), 0.62);
+}
+.model-menu-configure {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid rgba(var(--v-theme-primary), 0.28);
+  border-radius: 8px;
+  background: rgba(var(--v-theme-primary), 0.1);
+  color: rgb(var(--v-theme-primary));
+  font-size: 0.74rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+.model-menu-configure:hover {
+  background: rgba(var(--v-theme-primary), 0.16);
+}
+.model-menu-configure:active {
+  transform: scale(0.98);
+}
 
 .conversation-settings-dialog {
   width: min(420px, calc(100vw - 24px));
@@ -2734,27 +3002,55 @@ textarea.settings-input {
 /* Vertical Role List */
 
 
-/* Mobile Top Bar Notch Safe Area & Height Placeholder */
+/* Mobile top bar — compact but not cramped */
 .mobile-app-logo {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   object-fit: contain;
-  filter: drop-shadow(0 2px 6px rgba(21, 101, 255, 0.18));
+  opacity: 0.88;
 }
 .has-custom-titlebar .mobile-app-bar {
   top: var(--aerina-window-top-inset) !important;
 }
 
 .mobile-app-bar {
+  --mobile-bar-body: 56px;
   padding-top: env(safe-area-inset-top, 0px) !important;
-  height: calc(52px + env(safe-area-inset-top, 0px)) !important;
-  min-height: calc(52px + env(safe-area-inset-top, 0px)) !important;
+  height: calc(var(--mobile-bar-body) + env(safe-area-inset-top, 0px)) !important;
+  min-height: calc(var(--mobile-bar-body) + env(safe-area-inset-top, 0px)) !important;
   box-sizing: border-box !important;
   background: var(--miuix-surface) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   border-bottom: 1px solid var(--aerina-border) !important;
   z-index: 100 !important;
+}
+.mobile-app-bar .v-toolbar__content {
+  height: var(--mobile-bar-body) !important;
+  min-height: var(--mobile-bar-body) !important;
+  padding-inline: 12px 16px !important;
+  gap: 10px;
+}
+.mobile-app-bar-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-inline: 0 !important;
+  font-size: 1.0625rem !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.022em !important;
+  line-height: 1.25 !important;
+  text-align: center;
+}
+.mobile-app-bar .v-app-bar-title__placeholder {
+  display: none;
+}
+.mobile-app-bar .v-toolbar__prepend {
+  margin-inline: 0 !important;
+  flex: 0 0 auto;
+}
+.mobile-app-bar .v-toolbar__append {
+  flex: 0 0 auto;
+  min-width: 20px;
 }
 
 .chat-root.mobile .chat-main {
@@ -2825,11 +3121,22 @@ textarea.settings-input {
     box-sizing: border-box;
   }
   .unified-sidebar.mobile .unified-assistant-section {
-    padding: 8px 10px;
+    padding: 4px 10px 0;
   }
   .unified-sidebar.mobile .assistant-pane-header {
-    min-height: 48px;
-    padding-inline: 5px;
+    min-height: 52px;
+    padding: 6px 2px 10px 6px;
+  }
+  .unified-sidebar.mobile .sidebar-page-title,
+  .unified-sidebar.mobile .conversation-page-title {
+    font-size: 1.05rem;
+    font-weight: 680;
+    letter-spacing: -0.02em;
+  }
+  .unified-sidebar.mobile .sidebar-page-subtitle,
+  .unified-sidebar.mobile .conversation-context {
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
   }
   .unified-sidebar.mobile .assistant-chip-item {
     min-height: 46px;
@@ -2841,13 +3148,17 @@ textarea.settings-input {
     height: 30px;
   }
   .unified-sidebar.mobile .conversation-pane-header {
-    min-height: 44px;
-    padding: 4px 10px 3px 6px;
+    min-height: 52px;
+    padding: 6px 8px 6px 4px;
   }
   .unified-sidebar.mobile .sidebar-back-btn,
-  .unified-sidebar.mobile .conversation-new-btn {
+  .unified-sidebar.mobile .conversation-new-btn,
+  .unified-sidebar.mobile .assistant-manage-btn,
+  .unified-sidebar.mobile .conversation-header-icon {
     width: 40px !important;
     height: 40px !important;
+    min-width: 40px !important;
+    border-radius: 12px;
   }
   .unified-sidebar.mobile .conversation-search-row {
     padding: 6px 10px 8px;
@@ -2857,13 +3168,14 @@ textarea.settings-input {
   }
   .unified-sidebar.mobile .unified-conv-list {
     padding-inline: 6px;
+    padding-bottom: 20px;
+  }
+  .unified-sidebar.mobile .assistant-chips-scroller {
+    padding-bottom: 20px;
   }
   .unified-sidebar.mobile .conv-item {
     min-height: 48px;
     padding: 7px 9px;
-  }
-  .unified-sidebar.mobile .unified-profile-btn {
-    min-height: 44px;
   }
   .chat-root.mobile .chat-back-btn,
   .chat-root.mobile .chat-settings-btn {
@@ -2956,7 +3268,8 @@ textarea.settings-input {
 .unified-assistant-section,
 .unified-conversation-section,
 .unified-footer,
-.unified-runtime-item,
+.unified-runtime-trigger,
+.unified-runtime-menu-item,
 .unified-footer-settings,
 .assistant-chip-item,
 .conv-item,
@@ -2983,7 +3296,7 @@ textarea.settings-input {
   }
 
   .app-main.has-tab-bar {
-    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .mobile-list-view,
@@ -3007,12 +3320,6 @@ textarea.settings-input {
     overscroll-behavior: contain;
   }
 
-  .unified-sidebar.mobile .unified-footer {
-    padding: 8px 12px;
-    background: var(--miuix-surface-container);
-  }
-
-  .unified-sidebar.mobile .unified-profile-btn,
   .unified-sidebar.mobile .assistant-chip-item,
   .unified-sidebar.mobile .conv-item {
     border: 0;
@@ -3021,19 +3328,10 @@ textarea.settings-input {
 
   .mobile-app-bar,
   .v-app-bar.mobile-app-bar,
-  .v-app-bar.mobile-app-bar .v-toolbar__content,
-  .aerina-tab-bar {
-    background: var(--miuix-surface) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  .aerina-tab-bar {
-    height: calc(64px + env(safe-area-inset-bottom, 0px));
-    padding: 6px 12px env(safe-area-inset-bottom, 0px);
-    gap: 6px;
-    border-top: 1px solid var(--miuix-divider);
-    box-shadow: none;
+  .v-app-bar.mobile-app-bar .v-toolbar__content {
+    background: var(--aerina-glass-hi), var(--aerina-glass-bg) !important;
+    backdrop-filter: var(--aerina-glass-lens) !important;
+    -webkit-backdrop-filter: var(--aerina-glass-lens) !important;
   }
 
   .tab-bar-item {
@@ -3042,32 +3340,619 @@ textarea.settings-input {
   }
 
   .tab-bar-item.active {
-    background: transparent;
+    background: color-mix(in srgb, var(--miuix-on-container) 9%, transparent);
   }
 
   .chat-root.mobile .chat-composer {
     padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--miuix-background) 0%, transparent),
-      var(--miuix-background) 36%
-    );
+    background: transparent;
   }
 
   .chat-root.mobile .chat-composer-inner {
     width: 100%;
-    border: 0;
+    border: 1px solid var(--aerina-glass-edge);
     border-radius: 16px;
-    background: var(--miuix-secondary-container);
-    box-shadow: none;
+    background: var(--aerina-glass-hi), var(--aerina-glass-bg);
+    box-shadow: var(--aerina-glass-inner), var(--aerina-glass-shadow);
   }
 
-  .v-theme--dark .aerina-tab-bar,
   .v-theme--dark .chat-root.mobile .chat-composer-inner {
-    box-shadow: none;
+    box-shadow: var(--aerina-glass-inner), var(--aerina-glass-shadow);
   }
 
   .chat-root.mobile .composer-model-chip {
     max-width: 100%;
+  }
+}
+
+/* ==========================================================================
+   Liquid Glass disabled for reduced transparency
+   (declared after theme tokens so it wins the cascade)
+   ========================================================================== */
+@media (prefers-reduced-transparency: reduce) {
+  .aerina-app,
+  .v-theme--dark .aerina-app {
+    background: var(--miuix-surface) !important;
+  }
+  .aerina-tab-bar {
+    bottom: 0;
+    left: 0;
+    right: auto;
+    transform: none;
+    width: auto;
+    height: calc(48px + env(safe-area-inset-bottom, 0px));
+    border-radius: 0;
+    border-top: 1px solid var(--miuix-divider);
+  }
+}
+/* ==========================================================================
+   Apple Liquid Glass — 正确的材质分层实现
+   规则：只有结构性大表面用 backdrop-filter；
+   小元素用半透明背景 + 高光 + 边框，不叠加 blur。
+   ========================================================================== */
+
+/* ---------- Apple 弹簧 token ---------- */
+:root {
+  --apple-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --apple-press: 120ms cubic-bezier(0.22, 1, 0.36, 1);
+  --apple-enter: 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@supports (transition: all 0.01s linear) {
+  :root {
+    --aerina-spring: 280ms cubic-bezier(0.22, 1, 0.36, 1);
+    --aerina-press: 120ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+/* ---------- 列表过渡动画 ---------- */
+.apple-list-move,
+.apple-list-enter-active,
+.apple-list-leave-active {
+  transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.apple-list-enter-from {
+  opacity: 0;
+  transform: translateX(-10px) scale(0.96);
+}
+.apple-list-leave-to {
+  opacity: 0;
+  transform: translateX(10px) scale(0.96);
+}
+.apple-list-leave-active {
+  position: absolute;
+  width: calc(100% - 16px);
+}
+
+/* ===========================================================
+   1. 结构性玻璃表面 — backdrop-filter 仅用于这些
+   =========================================================== */
+
+/* 侧边栏 */
+.unified-sidebar {
+  background: var(--aerina-glass-hi), color-mix(in srgb, var(--aerina-glass-bg) 92%, transparent);
+  backdrop-filter: var(--aerina-glass-lens);
+  -webkit-backdrop-filter: var(--aerina-glass-lens);
+  border-inline-end: 1px solid var(--aerina-glass-edge);
+}
+
+/* 添加菜单弹出层 */
+.composer-add-menu {
+  background: var(--aerina-glass-hi), var(--aerina-glass-bg);
+  backdrop-filter: var(--aerina-glass-lens);
+  -webkit-backdrop-filter: var(--aerina-glass-lens);
+  border: 1px solid var(--aerina-glass-edge);
+  box-shadow: var(--aerina-glass-inner), 0 16px 48px rgb(0 0 0 / 22%);
+  border-radius: 16px;
+  overflow: hidden;
+  animation: apple-popover 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.composer-add-menu .v-list {
+  background: transparent;
+}
+.composer-add-menu .v-list-item {
+  min-height: 38px;
+  border-radius: 10px;
+  margin: 1px 4px;
+  transition: background 0.18s var(--apple-spring), transform 0.12s var(--apple-spring);
+}
+.composer-add-menu .v-list-item:hover {
+  background: rgb(var(--v-theme-on-surface) / 0.06);
+}
+.composer-add-menu .v-list-item:active {
+  transform: scale(0.97);
+}
+.composer-add-section {
+  padding: 8px 14px 2px;
+}
+@keyframes apple-popover {
+  from { opacity: 0; transform: scale(0.92) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* 设置面板 / 卡片 */
+.settings-panel,
+.settings-surface,
+.candidate-card {
+  background: var(--aerina-glass-hi), var(--aerina-glass-bg);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--aerina-glass-edge);
+  box-shadow: var(--aerina-glass-inner), 0 4px 20px rgb(0 0 0 / 8%);
+}
+
+/* 搜索框 */
+.chat-search-box {
+  background: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 3%, transparent);
+  border: 1px solid var(--aerina-glass-edge);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%);
+  transition: border-color 0.25s var(--apple-spring), box-shadow 0.25s var(--apple-spring);
+}
+.chat-search-box:focus-within {
+  border-color: color-mix(in srgb, var(--aerina-glass-edge) 40%, rgb(var(--v-theme-primary)) 60%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), 0 0 0 3px rgb(var(--v-theme-primary) / 0.12);
+}
+
+/* ===========================================================
+   2. 小元素 — 半透明 + 高光 + 边框，不用 backdrop-filter
+   =========================================================== */
+
+/* 对话列表项 */
+.conv-item {
+  border-radius: 12px;
+  transition: background 0.22s var(--apple-spring), transform 0.12s var(--apple-spring),
+    box-shadow 0.22s var(--apple-spring);
+}
+.conv-item:hover {
+  background: rgb(var(--v-theme-on-surface) / 0.05);
+}
+.conv-item:active {
+  transform: scale(0.97);
+}
+.conv-item.active {
+  background: linear-gradient(180deg, rgb(var(--v-theme-primary) / 0.14), rgb(var(--v-theme-primary) / 0.08));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 14%), inset 2px 0 0 rgb(var(--v-theme-primary));
+}
+
+/* 助手 chip */
+.assistant-chip-item {
+  border-radius: 12px;
+  transition: background 0.22s var(--apple-spring), transform 0.12s var(--apple-spring),
+    box-shadow 0.22s var(--apple-spring);
+}
+.assistant-chip-item:hover {
+  background: rgb(var(--v-theme-on-surface) / 0.05);
+}
+.assistant-chip-item:active {
+  transform: scale(0.96);
+}
+.assistant-chip-item.active {
+  background: linear-gradient(180deg, rgb(var(--v-theme-primary) / 0.12), rgb(var(--v-theme-primary) / 0.06));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 14%);
+}
+
+/* 运行模式菜单项 */
+.unified-runtime-menu-item {
+  transition: background 0.22s var(--apple-spring), color 0.22s var(--apple-spring),
+    transform 0.12s var(--apple-spring);
+}
+.unified-runtime-menu-item:hover {
+  background: rgb(var(--v-theme-on-surface) / 0.05);
+}
+.unified-runtime-menu-item:active {
+  transform: scale(0.97);
+}
+.unified-runtime-menu-item.active {
+  background: linear-gradient(180deg, rgb(var(--v-theme-primary) / 0.14), rgb(var(--v-theme-primary) / 0.07));
+  color: rgb(var(--v-theme-primary));
+}
+
+/* 加号按钮 — 不破坏 Vuetify menu 绑定 */
+.composer-add-btn {
+  background: linear-gradient(180deg, rgb(255 255 255 / 12%), rgb(255 255 255 / 4%));
+  border: 1px solid var(--aerina-glass-edge);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 14%);
+  transition: transform 0.12s var(--apple-spring), background 0.22s var(--apple-spring),
+    box-shadow 0.22s var(--apple-spring);
+}
+.v-theme--dark .composer-add-btn {
+  background: linear-gradient(180deg, rgb(255 255 255 / 6%), rgb(255 255 255 / 2%));
+}
+.composer-add-btn:hover {
+  background: linear-gradient(180deg, rgb(255 255 255 / 18%), rgb(255 255 255 / 6%));
+}
+.composer-add-btn:active {
+  transform: scale(0.88);
+  box-shadow: inset 0 2px 6px rgb(0 0 0 / 10%);
+}
+
+/* Composer 发送按钮 */
+.composer-send {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%), 0 2px 10px rgb(var(--v-theme-primary) / 24%);
+  transition: transform 0.12s var(--apple-spring), filter 0.22s var(--apple-spring),
+    box-shadow 0.22s var(--apple-spring);
+}
+.composer-send:not(:disabled):hover {
+  filter: brightness(1.06);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 24%), 0 4px 18px rgb(var(--v-theme-primary) / 32%);
+}
+.composer-send:not(:disabled):active {
+  transform: scale(0.92);
+  box-shadow: inset 0 2px 8px rgb(0 0 0 / 15%);
+}
+
+/* Composer 模型 chip */
+.composer-model-chip {
+  background: linear-gradient(180deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 3%));
+  border: 1px solid var(--aerina-glass-edge);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%);
+  transition: transform 0.12s var(--apple-spring), background 0.22s var(--apple-spring),
+    border-color 0.22s var(--apple-spring);
+}
+.v-theme--dark .composer-model-chip {
+  background: linear-gradient(180deg, rgb(255 255 255 / 5%), rgb(255 255 255 / 1%));
+}
+.composer-model-chip:hover {
+  background: linear-gradient(180deg, rgb(255 255 255 / 15%), rgb(255 255 255 / 5%));
+  border-color: color-mix(in srgb, var(--aerina-glass-edge) 50%, rgb(var(--v-theme-primary)) 50%);
+}
+.composer-model-chip:active {
+  transform: scale(0.95);
+}
+
+/* 设置页主要按钮 */
+.settings-primary-btn {
+  background: linear-gradient(180deg, rgb(var(--v-theme-primary) / 0.92), rgb(var(--v-theme-primary) / 0.82));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%), 0 2px 10px rgb(var(--v-theme-primary) / 24%);
+  border: 1px solid color-mix(in srgb, rgb(var(--v-theme-primary)) 50%, var(--aerina-glass-edge));
+  transition: transform 0.12s var(--apple-spring), filter 0.22s var(--apple-spring),
+    box-shadow 0.22s var(--apple-spring);
+}
+.settings-primary-btn:hover {
+  filter: brightness(1.05);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 24%), 0 4px 16px rgb(var(--v-theme-primary) / 30%);
+}
+.settings-primary-btn:active {
+  transform: scale(0.96);
+  box-shadow: inset 0 2px 8px rgb(0 0 0 / 15%);
+}
+
+/* 设置页次要按钮 */
+.settings-ghost-btn {
+  background: linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 2%));
+  border: 1px solid var(--aerina-glass-edge);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%);
+  color: rgb(var(--v-theme-on-surface));
+  transition: transform 0.12s var(--apple-spring), background 0.22s var(--apple-spring);
+}
+.v-theme--dark .settings-ghost-btn {
+  background: linear-gradient(180deg, rgb(255 255 255 / 5%), rgb(255 255 255 / 1%));
+}
+.settings-ghost-btn:hover {
+  background: linear-gradient(180deg, rgb(255 255 255 / 13%), rgb(255 255 255 / 4%));
+}
+.settings-ghost-btn:active {
+  transform: scale(0.96);
+}
+
+/* Vuetify 按钮 — 仅非图标按钮 */
+.settings-page .v-btn:not(.v-btn--icon):not(.bg-primary),
+.conversation-settings-dialog .v-btn:not(.v-btn--icon):not(.bg-primary) {
+  background: linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 2%)) !important;
+  border: 1px solid var(--aerina-glass-edge) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%) !important;
+  transition: transform 0.12s var(--apple-spring), background 0.22s var(--apple-spring) !important;
+}
+.settings-page .v-btn:not(.v-btn--icon):not(.bg-primary):hover,
+.conversation-settings-dialog .v-btn:not(.v-btn--icon):not(.bg-primary):hover {
+  background: linear-gradient(180deg, rgb(255 255 255 / 13%), rgb(255 255 255 / 4%)) !important;
+}
+.settings-page .v-btn:not(.v-btn--icon):not(.bg-primary):active,
+.conversation-settings-dialog .v-btn:not(.v-btn--icon):not(.bg-primary):active {
+  transform: scale(0.96);
+}
+.v-theme--dark .settings-page .v-btn:not(.v-btn--icon):not(.bg-primary),
+.v-theme--dark .conversation-settings-dialog .v-btn:not(.v-btn--icon):not(.bg-primary) {
+  background: linear-gradient(180deg, rgb(255 255 255 / 5%), rgb(255 255 255 / 1%)) !important;
+}
+
+/* 输入框 */
+.settings-page .v-field,
+.conversation-settings-dialog .v-field {
+  background: rgb(var(--v-theme-on-surface) / 0.03) !important;
+  border: 1px solid var(--aerina-glass-edge) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%) !important;
+  transition: border-color 0.25s var(--apple-spring), box-shadow 0.25s var(--apple-spring) !important;
+}
+.settings-page .v-field__overlay,
+.conversation-settings-dialog .v-field__overlay {
+  opacity: 0 !important;
+}
+.settings-page .v-field:hover,
+.conversation-settings-dialog .v-field:hover {
+  background: rgb(var(--v-theme-on-surface) / 0.05) !important;
+  border-color: color-mix(in srgb, var(--aerina-glass-edge) 60%, rgb(var(--v-theme-primary)) 40%) !important;
+}
+.settings-page .v-field--focused,
+.conversation-settings-dialog .v-field--focused {
+  background: rgb(var(--v-theme-on-surface) / 0.04) !important;
+  border-color: rgb(var(--v-theme-primary)) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%), 0 0 0 3px rgb(var(--v-theme-primary) / 0.12) !important;
+}
+
+/* 底栏 */
+.unified-footer {
+  background: linear-gradient(180deg, rgb(255 255 255 / 6%), transparent);
+  border-top: 1px solid var(--aerina-glass-edge);
+}
+.v-theme--dark .unified-footer {
+  background: linear-gradient(180deg, rgb(255 255 255 / 3%), transparent);
+}
+
+/* 个人按钮 */
+.unified-profile-btn {
+  background: linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 2%));
+  border: 1px solid var(--aerina-glass-edge);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%);
+  border-radius: 14px;
+  transition: transform 0.12s var(--apple-spring), background 0.22s var(--apple-spring);
+}
+.unified-profile-btn:hover {
+  background: linear-gradient(180deg, rgb(255 255 255 / 13%), rgb(255 255 255 / 4%));
+}
+.unified-profile-btn:active {
+  transform: scale(0.97);
+}
+.v-theme--dark .unified-profile-btn {
+  background: linear-gradient(180deg, rgb(255 255 255 / 5%), rgb(255 255 255 / 1%));
+}
+
+/* 底栏设置按钮（不含 conversation-header-icon，避免覆盖高对比样式） */
+.unified-footer-settings,
+.unified-runtime-trigger {
+  background: linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 2%));
+  border: 1px solid var(--aerina-glass-edge);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%);
+  transition: transform 0.12s var(--apple-spring), background 0.22s var(--apple-spring);
+}
+.unified-footer-settings:hover,
+.unified-runtime-trigger:hover {
+  background: linear-gradient(180deg, rgb(255 255 255 / 13%), rgb(255 255 255 / 4%));
+}
+.unified-footer-settings:active,
+.unified-runtime-trigger:active {
+  transform: scale(0.90);
+}
+.v-theme--dark .unified-footer-settings,
+.v-theme--dark .unified-runtime-trigger {
+  background: linear-gradient(180deg, rgb(255 255 255 / 5%), rgb(255 255 255 / 1%));
+}
+
+/* provider-card (legacy) — providers list uses flat .provider-row in page */
+.provider-card {
+  background: linear-gradient(180deg, rgb(255 255 255 / 6%), rgb(255 255 255 / 2%));
+  border: 1px solid var(--aerina-glass-edge);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%), 0 2px 12px rgb(0 0 0 / 6%);
+  transition: transform 0.12s var(--apple-spring), box-shadow 0.22s var(--apple-spring),
+    background 0.22s var(--apple-spring);
+}
+.provider-card:hover {
+  background: linear-gradient(180deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 3%));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 14%), 0 6px 24px rgb(0 0 0 / 12%);
+  border-color: color-mix(in srgb, var(--aerina-glass-edge) 50%, rgb(var(--v-theme-primary)) 50%);
+}
+.provider-card:active {
+  transform: scale(0.99);
+}
+.v-theme--dark .provider-card {
+  background: linear-gradient(180deg, rgb(255 255 255 / 4%), rgb(255 255 255 / 1%));
+}
+.providers-page .settings-empty,
+.providers-page .providers-form-section {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+.mobile-app-bar-spacer {
+  display: block;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+}
+
+/* Composer 内聚焦上浮 */
+.chat-composer-inner {
+  transition: border-color 0.25s var(--apple-spring), box-shadow 0.25s var(--apple-spring),
+    transform 0.25s var(--apple-spring);
+}
+.chat-composer-inner:focus-within {
+  border-color: color-mix(in srgb, var(--aerina-glass-edge) 40%, rgb(var(--v-theme-primary)) 60%);
+  box-shadow: var(--aerina-glass-inner), 0 8px 28px rgb(0 0 0 / 12%),
+    inset 0 0 0 2px rgb(var(--v-theme-primary) / 0.4);
+}
+
+/* Mobile 侧边栏 */
+.unified-sidebar.mobile {
+  background: var(--aerina-glass-hi), color-mix(in srgb, var(--aerina-glass-bg) 90%, transparent);
+  backdrop-filter: var(--aerina-glass-lens);
+  -webkit-backdrop-filter: var(--aerina-glass-lens);
+}
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .apple-list-move,
+  .apple-list-enter-active,
+  .apple-list-leave-active,
+  .composer-add-menu,
+  .conv-item,
+  .assistant-chip-item {
+    animation: none !important;
+    transition: none !important;
+  }
+  .chat-composer-inner:focus-within {
+    transform: none !important;
+  }
+}
+
+/* Message actions, recs, arena, mobile candidate pager */
+.msg-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.55;
+  cursor: pointer;
+}
+.msg-action:hover,
+.msg-action:focus-visible {
+  opacity: 1;
+  background: rgba(var(--v-theme-on-surface), 0.08);
+}
+.msg-edit {
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.msg-edit-input {
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(var(--v-border-color), 0.4);
+  background: rgb(var(--v-theme-surface));
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+.msg-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.msg-action-text {
+  border: 0;
+  background: transparent;
+  color: rgba(var(--v-theme-on-surface), 0.62);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 650;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+.msg-action-text.primary {
+  color: rgb(var(--v-theme-primary));
+}
+.chat-recs {
+  margin-top: 16px;
+  width: min(420px, 100%);
+}
+.chat-recs-title {
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: rgba(var(--v-theme-on-surface), 0.5);
+  margin-bottom: 8px;
+}
+.chat-recs-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.chat-rec-chip {
+  max-width: 100%;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--aerina-glass-edge, rgba(var(--v-border-color), 0.35));
+  background: var(--aerina-glass-bg, rgb(var(--v-theme-surface)));
+  color: inherit;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.chat-rec-chip:hover {
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 10%, rgb(var(--v-theme-surface)));
+}
+.chat-rec-chip:active {
+  transform: scale(0.98);
+}
+.candidate-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+.candidate-pager-btn {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--miuix-surface-container, rgb(var(--v-theme-surface)));
+  color: inherit;
+  cursor: pointer;
+}
+.candidate-pager-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.candidate-pager-label {
+  font-size: 0.78rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.round-grid.mobile-paged {
+  display: block;
+}
+.arena-vote-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.model-menu-arena {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: calc(100% - 8px);
+  margin: 4px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.model-menu-arena.on {
+  background: rgba(var(--v-theme-primary), 0.1);
+  color: rgb(var(--v-theme-primary));
+}
+.model-menu-arena:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (max-width: 679px) {
+  .chat-recs-list {
+    justify-content: stretch;
+  }
+  .chat-rec-chip {
+    width: 100%;
+  }
+  .msg-user .msg-meta .msg-action {
+    opacity: 0.85;
   }
 }
