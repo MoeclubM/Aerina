@@ -463,7 +463,10 @@ mod tests {
         db.truncate_branch_from(branch.id, user2.id).await.unwrap();
 
         let remaining = db.list_messages(branch.id).await.unwrap();
-        let ids = remaining.iter().map(|(message, _)| message.id).collect::<Vec<_>>();
+        let ids = remaining
+            .iter()
+            .map(|(message, _)| message.id)
+            .collect::<Vec<_>>();
         assert_eq!(ids, vec![user1.id, assistant1.id]);
         assert!(db.get_round(round.id).await.unwrap().is_none());
     }

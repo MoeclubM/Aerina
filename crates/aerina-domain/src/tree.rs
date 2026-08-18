@@ -179,7 +179,10 @@ pub fn descendant_ids_inclusive(
 ) -> Vec<MessageNodeId> {
     use std::collections::HashMap;
 
-    let by_id: HashMap<_, _> = messages.iter().map(|message| (message.id, message)).collect();
+    let by_id: HashMap<_, _> = messages
+        .iter()
+        .map(|message| (message.id, message))
+        .collect();
     messages
         .iter()
         .filter(|message| {
